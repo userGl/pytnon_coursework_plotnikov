@@ -9,7 +9,7 @@ import time
 app = FastAPI()
 
 # Модель данных для задач
-class Task():
+class Task(BaseModel):
     id: int
     title: str # r = "4"; d = 4
     description: Optional[str] = None
