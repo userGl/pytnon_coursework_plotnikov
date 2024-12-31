@@ -1,4 +1,5 @@
 from fastapi import FastAPI, File, UploadFile
+import tesseract
 
 app = FastAPI()
 
@@ -12,12 +13,13 @@ app = FastAPI()
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
-   """Загружает файл и возвращает информацию о нем."""
-   content = await file.read()
-   file_path = f"uploaded_{file.filename}"
-   with open(file_path, "wb") as f:
+    """Загружает файл и возвращает информацию о нем."""
+    content = await file.read()
+    file_path = f"temp/uploaded_{file.filename}"
+    with open(file_path, "wb") as f:
        f.write(content)
-   return {"filename": file.filename, "size": len(content)}
+    text = tesseract.ocr_recognize(file_path, 'rus+eng')
+    return {"filename": file.filename, "size": len(content), "text": text }
 
 
-#uvicorn app:app
+#uvicorn app:app --reload
