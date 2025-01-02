@@ -1,7 +1,0 @@
-{% extends "base_template.html" %}
-
-{% block title %}Child Template{% endblock %}
-
-{% block content %}
-    <h1>This is the content from the child template.</h1>
-{% endblock %}

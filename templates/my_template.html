@@ -1,14 +1,51 @@
 <!DOCTYPE html>
 <html lang="ru">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Static Page</title>
 </head>
+
 <body>
     <h2>Здесь будем распознавать документы</h2>
-    <p><input name="Загрузить" type="button" value="Выбрать файл"></p>
-    <p><input name="Распознать" type="button" value="Запустить распознование"></p>
-    <p>{{text}}</p>
+    <form id="uploadForm">
+        <input type="file" id="fileInput" style="display: none;">
+        <button type="button" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
+        <p id="selectedFileName"></p>
+        <button type="button" onclick="uploadFile()">Запустить распознавание</button>
+    </form>
+    <p id="result">{{text}}</p>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function () {
+            const fileName = this.files[0] ? this.files[0].name : 'Файл не выбран';
+            document.getElementById('selectedFileName').textContent = 'Выбранный файл: ' + fileName;
+        });
+
+        async function uploadFile() {
+            const fileInput = document.getElementById('fileInput');
+            if (!fileInput.files[0]) {
+                alert('Пожалуйста, выберите файл');
+                return;
+            }
+
+            const formData = new FormData();
+            formData.append('file', fileInput.files[0]);
+
+            try {
+                const response = await fetch('/upload/', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                document.getElementById('result').textContent = data.text;
+            } catch (error) {
+                console.error('Ошибка:', error);
+                alert('Произошла ошибка при загрузке файла');
+            }
+        }
+    </script>
 </body>
+
 </html>
