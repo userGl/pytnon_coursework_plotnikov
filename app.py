@@ -1,7 +1,7 @@
 from fastapi import FastAPI, File, UploadFile
 import tesseract
 
-import httpx
+import httpx, PIL, os
 
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
@@ -17,9 +17,16 @@ async def upload_file(file: UploadFile = File(...)):
     content = await file.read()
     file_path = f"temp/uploaded_{file.filename}"
     with open(file_path, "wb") as f:
-       f.write(content)
-    text = tesseract.ocr_recognize(file_path, 'rus+eng')
-    return {"filename": file.filename, "size": len(content), "text": text }
+       f.write(content)       
+    try:
+        text = tesseract.ocr_recognize(file_path, 'rus+eng')
+    except PIL.UnidentifiedImageError as e:        
+        print(f"Ошибка {e}")
+        err = str(e)
+        os.remove(file_path) #Если формат файла не правильный (не поддержвается PIL), удаляем 
+        return {"text":err}
+    else:
+        return {"filename": file.filename, "size": len(content), "text": text }
 
 # Моя статическая HTML-страница
 @app.get("/my-page", response_class=HTMLResponse)
