@@ -1,21 +1,38 @@
 from fastapi import FastAPI, File, UploadFile
-import tesseract
-
-import httpx, PIL, os
-
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
+import httpx, PIL, os
+import datetime
+
+import tesseract
+import sq_lite
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
+
+def get_date_time():
+    now = datetime.datetime.now(datetime.timezone.utc).astimezone()
+    time_format = "%Y-%m-%d_%H-%M-%S"
+    return f"{now:{time_format}}"
+
+
+@app.get("/")
+def read_root():
+     return {"message": "Добро пожаловать в Tessaract-OCR !!!"}
+
+@app.get("/admin/", response_class=HTMLResponse)
+async def demo_data(request: Request):    
+    data = sq_lite.sql_read_all()
+    return templates.TemplateResponse("demo_data.html", {"request": request, "data": data})
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
     """Загружает файл и возвращает информацию о нем."""
     content = await file.read()
-    file_path = f"temp/uploaded_{file.filename}"
+    date_time = get_date_time()
+    file_path = f"temp/{date_time}_{file.filename}"
     with open(file_path, "wb") as f:
        f.write(content)       
     try:
@@ -25,18 +42,17 @@ async def upload_file(file: UploadFile = File(...)):
         err = str(e)
         os.remove(file_path) #Если формат файла не правильный (не поддержвается PIL), удаляем 
         return {"text":err}
-    else:
+    else:        
+        data = (date_time, file_path, text)
+        sq_lite.sql_insert(data)
         return {"filename": file.filename, "size": len(content), "text": text }
 
-# Моя статическая HTML-страница
-@app.get("/my-page", response_class=HTMLResponse)
+# Cтатическая HTML-страница для распознавания текста
+@app.get("/my-page/", response_class=HTMLResponse)
 async def static_page(request: Request):
     text="Привет мир!!!"    
     return templates.TemplateResponse("my_template.html", {"request": request, "text": text}) 
 
-# @app.get("/")
-# def read_root():
-#     return {"message": "Добро пожаловать в FastAPI"}
 
 # @app.get("/items/{item_id}")
 # def read_item(item_id: int, q: str = None):
