@@ -2,12 +2,16 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
+from pydantic import BaseModel, constr
 
 import httpx, PIL, os
 import datetime
 
 import tesseract
 import sq_lite
+
+class Txt(BaseModel):
+    txt: constr(min_length=3)
 
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
@@ -35,8 +39,9 @@ async def upload_file(file: UploadFile = File(...)):
     file_path = f"temp/{date_time}_{file.filename}"
     with open(file_path, "wb") as f:
        f.write(content)       
-    try:
-        text = tesseract.ocr_recognize(file_path, 'rus+eng')
+    try:        
+        text = tesseract.ocr_recognize(file_path, 'rus+eng')        
+        txt = Txt(txt=text)
     except PIL.UnidentifiedImageError as e:        
         print(f"Ошибка {e}")
         err = str(e)
