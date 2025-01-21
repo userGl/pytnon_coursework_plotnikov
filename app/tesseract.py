@@ -6,10 +6,6 @@ from pydantic import BaseModel, constr, ValidationError, Field, validator
 from typing import Optional
 import re
 
-class Txt(BaseModel): #Для валидации
-    txt: str
-    txt: constr(min_length=3)
-
 
 #Задаём путь к бинарнику tesseract.exe
 #tesseract_path = os.path.abspath(os.path.join(os.path.dirname(__file__), 'Tesseract-OCR', 'tesseract.exe')) - если папка Tesseract-OCR в папке app
@@ -27,8 +23,7 @@ class OCRResult(BaseModel):
             raise ValueError("Текст должен содержать хотя бы одну букву")
         return v
 
-class Tesseract:
-    
+class Tesseract:    
     def ocr_recognize2(self, file_path, lang='rus'): 
         try:            
             image1 = Image.open(file_path)
