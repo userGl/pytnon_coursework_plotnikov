@@ -35,11 +35,11 @@ class Tesseract:
             
         except PIL.UnidentifiedImageError as e:        
             print(f"Ошибка {e}")
-            return {"status": False, "text": str(e)}
+            return {"status": False, "text": "Ошибка: Неправильный формат файла"}
             
         except ValidationError as e:
             print(f"Ошибка валидации: {e}")
-            return {"status": False, "text": "Текст слишком короткий или не содержит букв"}
+            return {"status": False, "text": "Ошибка: Текст слишком короткий или не содержит букв"}
             
         except Exception as e:
             print(f"Непредвиденная ошибка: {e}")
