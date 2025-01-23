@@ -26,6 +26,34 @@ class Sqlite:
 
 
 
+
+# работа c sqlalcemy
+# from sqlalchemy import create_engine, MetaData, Table
+
+# # Создание подключения к базе данных
+# engine = create_engine("sqlite:///european_database.sqlite")
+
+# # Создание соединения с базой данных
+# conn = engine.connect()
+
+# # Инициализация объекта для метаданных
+# metadata = MetaData()
+
+# # Определение объекта таблицы с помощью метаданных
+# division = Table('divisions', metadata, autoload_with=engine)  # объект таблицы
+
+# # Печать метаданных таблицы 'divisions'
+# print(repr(metadata.tables['divisions']))
+
+# # Печать всех столбцов таблицы
+# print(division.columns.keys())
+
+
+
+
+
+
+
 # Так было сделано на лекции
 # repository/movement_repository.py
 
