@@ -5,15 +5,17 @@
 <h1>ADMIN</h1>
 <table border="1">
     <tr>
-        <th>Дата/время</th>
+        <th>Дата/время</th>        
         <th>Имя файла</th>
         <th>Распознанный текст</th>
+        <th>Статус</th>
     </tr>
         {% for item in data %}
     <tr>
         <td>{{ item.date_time }}</td>
         <td>{{ item.file_name }}</td>
         <td>{{ item.ocr_txt }}</td>
+        <td>{{ item.status }}</td>
     </tr>
     {% endfor %}
 </table>

@@ -3,11 +3,11 @@ from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
 
-import httpx, PIL, os
+import PIL, os
 import datetime
 
 from app.tesseract import Tesseract
-from repository.sq_lite import Sqlite
+from repository.sql_alchemy import add_ocr_data, get_all_ocr_data
 
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
@@ -21,7 +21,7 @@ async def base(request: Request):
 
 @app.get("/admin/", response_class=HTMLResponse)
 async def demo_data(request: Request):    
-    data = Sqlite.sql_read_all()
+    data = get_all_ocr_data()
     return templates.TemplateResponse("demo_data.html", {"request": request, "data": data})
 
 @app.post("/upload/")
@@ -38,15 +38,15 @@ async def upload_file(file: UploadFile = File(...)):
     result = ocr.ocr_recognize2(file_path, 'rus+eng')    
     if result["status"] == False:
         os.remove(file_path) #Если формат файла не правильный удаляем из папки temp
+        add_ocr_data("--", result["text"], result["status"])
     else:
-        data = (date_time2, file_path, result["text"])
-        Sqlite.sql_insert(data)
+        add_ocr_data(file_path, result["text"], result["status"])
     return result
 
 # Cтатическая HTML-страница для распознавания текста
 @app.get("/OCR/", response_class=HTMLResponse)
 async def static_page(request: Request):
-    text="Привет мир!!!"    
+    text="Нет распознаного текста"    
     return templates.TemplateResponse("my_template.html", {"request": request, "text": text}) 
 
 

@@ -1,21 +1,25 @@
-from sqlalchemy import create_engine, Column, Integer, String 
+from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker
+from datetime import datetime
 
 # Создаем базовый класс для моделей
 Base = declarative_base()
 
-# Определение модели User 
-class User(Base): 
-    __tablename__ = 'users'
+# Определение модели OcrData
+class OcrData(Base):
+    __tablename__ = 'ocr_data'
 
     id = Column(Integer, primary_key=True)
-    name = Column(String, unique=True)
-    age = Column(Integer)    
+    date_time = Column(DateTime, default=datetime.now)
+    file_name = Column(String)
+    ocr_txt = Column(String)
+    status = Column(String)
+
     def __repr__(self):
-        return f"<User (name='{self.name}', age={self.age})>"
+        return f"<OcrData (file_name='{self.file_name}', date_time={self.date_time})>"
 
 # Создание двигателя подключения к базе данных SQLite 
-engine = create_engine('sqlite:///example.db', echo=False)
+engine = create_engine('sqlite:///repository/exampe.db', echo=False)
 
 # Создание всех таблиц
 Base.metadata.create_all(engine)
@@ -24,23 +28,27 @@ Base.metadata.create_all(engine)
 Session = sessionmaker(bind=engine)
 session = Session()
 
-# Добавление нового пользователя 
-new_user = User(name='Алекс', age=30) 
-session.add(new_user)
-session.commit()
-# Запрос пользователей
-users = session.query(User).all()
-for user in users: 
-    print(user)
+def add_ocr_data(file_name: str, ocr_txt: str, status: bool):
+    """Добавление данных OCR в базу."""
+    new_ocr_data = OcrData(
+        file_name=file_name,
+        ocr_txt=ocr_txt,
+        status=status
+    )
+    session.add(new_ocr_data)
+    session.commit()
+    return True
 
-def add_user_orm(name, age):
-    """Добавление пользователя с использованием ORM."""
-    new_user = User (name=name, age=age)
-    session.add(new_user)
-    try:
-        session.commit()
-        print(f"Пользователь '{name}' добавлен (ORM).")
-    except IntegrityError:
-        session.rollback()
-        print(f"Пользователь '{name}' уже существует (ORM).")
+def get_all_ocr_data():
+    """Получение всех данных OCR из базы."""
+    ocr_records = session.query(OcrData).all()
+    result = []
+    for record in ocr_records:
+        result.append({
+            'date_time': record.date_time.strftime('%Y-%m-%d %H:%M:%S'),
+            'file_name': record.file_name,
+            'ocr_txt': record.ocr_txt,
+            'status' : record.status
+        })
+    return result
 
