@@ -7,7 +7,7 @@ import PIL, os
 import datetime
 
 from app.tesseract import Tesseract
-from repository.sql_alchemy import add_ocr_data, get_all_ocr_data
+from repository.repository import repository
 
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
@@ -21,7 +21,7 @@ async def base(request: Request):
 
 @app.get("/admin/", response_class=HTMLResponse)
 async def demo_data(request: Request):    
-    data = get_all_ocr_data()
+    data = repository.get_all()
     return templates.TemplateResponse("demo_data.html", {"request": request, "data": data})
 
 @app.post("/upload/")
@@ -38,9 +38,9 @@ async def upload_file(file: UploadFile = File(...)):
     result = ocr.ocr_recognize2(file_path, 'rus+eng')    
     if result["status"] == False:
         os.remove(file_path) #Если формат файла не правильный удаляем из папки temp
-        add_ocr_data("--", result["text"], result["status"])
+        repository.add("--", result["text"], False)
     else:
-        add_ocr_data(file_path, result["text"], result["status"])
+        repository.add(file_path, result["text"], True)
     return result
 
 # Cтатическая HTML-страница для распознавания текста
