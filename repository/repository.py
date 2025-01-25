@@ -76,7 +76,7 @@ class SQLAlchemyRepository(Repository):
             yield session
             session.commit() # Коммит изменений при успехе
         except Exception as e:
-            session.rollback() #О тмена изменений при ошибке
+            session.rollback() #Отмена изменений при ошибке
             raise e
         finally:
             session.close()
