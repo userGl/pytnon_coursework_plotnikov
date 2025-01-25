@@ -71,12 +71,12 @@ class SQLAlchemyRepository(Repository):
     @contextmanager
     def _get_session(self):
         """Контекстный менеджер для сессии базы данных"""
-        session = self.Session()
+        session = self.Session() # Создание сессии
         try:
             yield session
-            session.commit()
+            session.commit() # Коммит изменений при успехе
         except Exception as e:
-            session.rollback()
+            session.rollback() #О тмена изменений при ошибке
             raise e
         finally:
             session.close()
@@ -100,8 +100,7 @@ class SQLAlchemyRepository(Repository):
         """Получить все записи OCR из базы данных"""
         try:
             with self._get_session() as session:
-                ocr_records = session.query(OcrData).all()
-                return [record.to_dict() for record in ocr_records]
+                return [record.to_dict() for record in session.query(OcrData).all()]
         except Exception as e:
             print(f"Ошибка при получении данных: {e}")
             return []
@@ -110,8 +109,9 @@ class SQLAlchemyRepository(Repository):
         """Получить записи по статусу"""
         try:
             with self._get_session() as session:
-                ocr_records = session.query(OcrData).filter(OcrData.status == str(status)).all()
-                return [record.to_dict() for record in ocr_records]
+                return [record.to_dict() 
+                        for record in session.query(OcrData)
+                        .filter(OcrData.status == str(status)).all()]
         except Exception as e:
             print(f"Ошибка при получении данных по статусу: {e}")
             return []
@@ -120,11 +120,11 @@ class SQLAlchemyRepository(Repository):
         """Получить записи по дате"""
         try:
             with self._get_session() as session:
-                ocr_records = session.query(OcrData).filter(
-                    OcrData.date_time >= date.replace(hour=0, minute=0, second=0),
-                    OcrData.date_time < date.replace(hour=23, minute=59, second=59)
-                ).all()
-                return [record.to_dict() for record in ocr_records]
+                return [record.to_dict() 
+                        for record in session.query(OcrData)
+                        .filter(OcrData.date_time >= date.replace(hour=0, minute=0, second=0),
+                               OcrData.date_time < date.replace(hour=23, minute=59, second=59))
+                        .all()]
         except Exception as e:
             print(f"Ошибка при получении данных по дате: {e}")
             return []
