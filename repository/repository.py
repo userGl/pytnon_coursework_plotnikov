@@ -132,5 +132,17 @@ class SQLAlchemyRepository(Repository):
     def search_by_text(self, query: str) -> List[Dict[str, Any]]:
         pass
 
+    def delete_by_filename(self, file_name: str) -> bool:
+        """Удаляет записи по имени файла"""
+        try:
+            with self._get_session() as session:
+                records = session.query(OcrData).filter(OcrData.file_name == file_name).all()
+                for record in records:
+                    session.delete(record)
+                return True
+        except Exception as e:
+            print(f"Ошибка при удалении данных: {e}")
+            return False
+
 # Создаем единственный экземпляр репозитория
 repository = SQLAlchemyRepository()

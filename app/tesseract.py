@@ -14,20 +14,18 @@ pytesseract.pytesseract.tesseract_cmd = tesseract_path
 
 #Модель для валидации распознанного текста
 class OCRResult(BaseModel):
-    text: constr(min_length=3) = Field(..., description="Распознанный текст")
-    status: bool = Field(default=True, description="Статус выполнения OCR")
-    
-    @validator('text')
-    def text_must_contain_letters(cls, v):
-        if not re.search('[a-zA-Zа-яА-Я]', v):
-            raise ValueError("Текст должен содержать хотя бы одну букву")
-        return v
+    text: str
+    status: bool = True
 
 class Tesseract:    
     def ocr_recognize2(self, file_path, lang='rus'): 
         try:            
             image1 = Image.open(file_path)
             recognized_text = pytesseract.image_to_string(image1, lang)
+            
+            # Проверяем текст перед созданием модели
+            if not recognized_text or len(recognized_text.strip()) < 3 or not re.search('[a-zA-Zа-яА-Я]', recognized_text):
+                return {"status": False, "text": "Ошибка: Текст слишком короткий или не содержит букв"}
             
             # Создаем и валидируем результат через Pydantic модель
             result = OCRResult(text=recognized_text)

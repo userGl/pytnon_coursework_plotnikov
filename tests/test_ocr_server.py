@@ -1,6 +1,7 @@
 import pytest
 import requests
 from pathlib import Path
+from repository.repository import repository
 
 # Файлы отправляем берутся из path и отправляются на url
 url = 'http://127.0.0.1:8000/upload/'
@@ -27,6 +28,13 @@ def send_file(file_path: Path) -> dict:
         print(f"Ошибка при отправке файла {file_path}: {str(e)}")
         return None
 
+@pytest.fixture(scope="session", autouse=True)
+def cleanup_after_tests():
+    """Очистка тестовых данных после тестов"""
+    yield
+    # После выполнения всех тестов очищаем тестовые данные
+    for test_file in testfiles:
+        repository.delete_by_filename(test_file)
 
 @pytest.mark.parametrize("test_file, expected_result", list(zip(testfiles, results_lst)))
 def test_ocr(test_file, expected_result):

@@ -14,15 +14,13 @@ templates = Jinja2Templates(directory="app/templates")
 
 
 @app.get("/", response_class=HTMLResponse)
-#def read_root():    
 async def base(request: Request):
-    return templates.TemplateResponse("base.html", {"request": request})
-    #return {"message": "Добро пожаловать в Tessaract-OCR !!!"}
+    return templates.TemplateResponse(request, "base.html")
 
 @app.get("/admin/", response_class=HTMLResponse)
 async def demo_data(request: Request):    
     data = repository.get_all()
-    return templates.TemplateResponse("demo_data.html", {"request": request, "data": data})
+    return templates.TemplateResponse(request, "demo_data.html", {"data": data})
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
@@ -47,9 +45,11 @@ async def upload_file(file: UploadFile = File(...)):
 @app.get("/OCR/", response_class=HTMLResponse)
 async def static_page(request: Request):
     text="Нет распознаного текста"    
-    return templates.TemplateResponse("my_template.html", {"request": request, "text": text}) 
+    return templates.TemplateResponse(request, "my_template.html", {"text": text}) 
 
-
+@app.get("/records/")
+async def get_records():
+    return repository.get_all()
 
 #uvicorn app.main:app --reload
 #python post_file_to_server.py
