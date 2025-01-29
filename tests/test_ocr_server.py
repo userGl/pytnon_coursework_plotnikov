@@ -1,6 +1,7 @@
 import pytest
-import requests
+from fastapi.testclient import TestClient
 from pathlib import Path
+from app.main import app
 from repository.repository import repository
 
 # Файлы отправляем берутся из path и отправляются на url
@@ -17,12 +18,14 @@ results_lst = [
     {"status": False, "text": "Ошибка: Текст слишком короткий или не содержит букв"}
 ]
 
+client = TestClient(app)
+
 def send_file(file_path: Path) -> dict:
     """Отправка файла на сервер OCR"""
     try:
         with open(file_path, 'rb') as file:
             files = {'file': (file_path.name, file, 'multipart/form-data')}
-            response = requests.post(url, files=files)
+            response = client.post("/upload/", files=files)
             return response.json() if response.status_code == 200 else None
     except Exception as e:
         print(f"Ошибка при отправке файла {file_path}: {str(e)}")

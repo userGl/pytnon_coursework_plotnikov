@@ -1,9 +1,8 @@
-import pytest
 import sys
 import os
 
 def run_tests():
-    """Запуск всех тестов проекта"""
+    """Запуск всех тестов проекта"""    
     # Добавляем текущую директорию в PYTHONPATH
     project_root = os.path.dirname(os.path.abspath(__file__))
     sys.path.append(project_root)
@@ -20,11 +19,11 @@ def run_tests():
     
     # Выводим итоговое сообщение
     if return_code == 0:
-        print("\nВсе тесты успешно пройдены!")
+        return "\nВсе тесты успешно пройдены!"
     else:
-        print("\nНекоторые тесты не прошли.")
-    
-    return return_code
+        return "\nНекоторые тесты не прошли."
 
 if __name__ == "__main__":
-    sys.exit(run_tests()) 
+    result = run_tests()
+    print(result)
+    sys.exit(0 if "успешно" in result else 1) 
