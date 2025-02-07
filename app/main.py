@@ -1,11 +1,16 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, Body
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
+from typing import List
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 import PIL, os
-import datetime
+from datetime import datetime
 import subprocess
+from typing import Optional
+import shutil
 
 from app.tesseract import Tesseract
 from repository.repository import repository
@@ -13,32 +18,47 @@ from repository.repository import repository
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
 
+# Создаем папку для файлов, если её нет
+REPOSITORY_FILES_DIR = Path("repository/files")
+REPOSITORY_FILES_DIR.mkdir(parents=True, exist_ok=True)
+
+# Монтируем директорию temp как статическую
+app.mount("/static/app/temp", StaticFiles(directory="app/temp"), name="temp")
+
 @app.get("/", response_class=HTMLResponse)
 async def base(request: Request):
     return templates.TemplateResponse(request, "base.html")
 
 @app.get("/admin/", response_class=HTMLResponse)
-async def demo_data(request: Request):    
-    data = repository.get_all()
-    return templates.TemplateResponse(request, "demo_data.html", {"data": data})
+async def admin_page(request: Request):    
+    return templates.TemplateResponse(request, "admin.html", {"request": request})
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
     """Загружает файл и возвращает информацию о нем."""
     content = await file.read()
-    current_datetime = datetime.datetime.now()
+    current_datetime = datetime.now()
     date_time1 = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
     date_time2 = current_datetime.strftime("%d-%m-%Y %H:%M")    
-    file_path = f"app/temp/{date_time1}_{file.filename}" 
-    with open(file_path, "wb") as f:
-       f.write(content)          
-    ocr = Tesseract() #Класс Tessaract занимается распознаванием изображения. На вход путь к файлу, на выходе текст
-    result = ocr.ocr_recognize2(file_path, 'rus+eng')    
+    temp_file_path = f"app/temp/{date_time1}_{file.filename}"
+    
+    # Сначала сохраняем во временную папку
+    with open(temp_file_path, "wb") as f:
+        f.write(content)          
+    
+    ocr = Tesseract()
+    result = ocr.ocr_recognize2(temp_file_path, 'rus+eng')    
+    
     if result["status"] == False:
-        os.remove(file_path) #Если формат файла не правильный удаляем из папки temp
+        # Если файл не распознан - удаляем его и записываем ошибку в БД
+        os.remove(temp_file_path)
         repository.add("--", result["text"], False)
     else:
-        repository.add(file_path, result["text"], True)
+        # Если файл успешно распознан - перемещаем его в репозиторий
+        repo_file_path = f"repository/files/{date_time1}_{file.filename}"
+        shutil.move(temp_file_path, repo_file_path)
+        repository.add(repo_file_path, result["text"], True)
+    
     return result
 
 # Cтатическая HTML-страница для распознавания текста
@@ -72,6 +92,62 @@ async def run_test(test_type: str):
         return JSONResponse(content={"output": result.stdout + (result.stderr or '')})
     except Exception as e:
         return JSONResponse(content={"error": str(e)})
+
+@app.get("/search/", response_class=HTMLResponse)
+async def search_page(request: Request,
+                     keyword: Optional[str] = None,
+                     filename: Optional[str] = None,
+                     date_from: Optional[str] = None,
+                     date_to: Optional[str] = None):
+    
+    # Преобразуем строковые даты в datetime объекты
+    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+    
+    # Если есть параметры поиска, выполняем поиск
+    if any([keyword, filename, date_from, date_to]):
+        data = repository.search_documents(
+            keyword=keyword,
+            filename=filename,
+            date_from=date_from_obj,
+            date_to=date_to_obj
+        )
+    else:
+        # Если параметров нет - возвращаем все записи
+        data = repository.get_all()
+    
+    # Проверяем существование файлов
+    for item in data:
+        if item['file_name'].startswith('repository/files/'):
+            item['file_exists'] = Path(item['file_name']).exists()
+    
+    return templates.TemplateResponse(
+        "search.html",
+        {
+            "request": request,
+            "data": data,
+            "keyword": keyword,
+            "filename": filename,
+            "date_from": date_from,
+            "date_to": date_to
+        }
+    )
+
+@app.post("/delete_records")
+async def delete_records(filenames: List[str] = Body(..., embed=True)):
+    """Удаляет выбранные записи из базы данных"""
+    try:
+        for filename in filenames:
+            repository.delete_by_filename(filename)
+        return {"status": "success"}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+# Обновляем монтирование статических файлов
+app.mount("/static/repository/files", StaticFiles(directory="repository/files"), name="repository_files")
 
 #uvicorn app.main:app --reload
 #python post_file_to_server.py

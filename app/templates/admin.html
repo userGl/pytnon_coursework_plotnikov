@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Административная панель</h2>
+
+<!-- Секция тестирования -->
+<div class="test-section">
+    <h3>Запуск тестов</h3>
+    <button onclick="runTest('all')">Все тесты</button>
+    <button onclick="runTest('endpoints')">Тесты эндпоинтов</button>
+    <button onclick="runTest('repository')">Тесты репозитория</button>
+    <button onclick="runTest('ocr')">Тесты OCR</button>
+    <div id="testResult" style="white-space: pre-wrap;"></div>
+</div>
+
+<script>
+    async function runTest(testType) {
+        const resultDiv = document.getElementById('testResult');
+        resultDiv.textContent = 'Выполняется...';
+        try {
+            const response = await fetch(`/run_test/${testType}`);
+            const data = await response.json();
+            resultDiv.textContent = data.output || data.error;
+        } catch (error) {
+            resultDiv.textContent = 'Ошибка при выполнении тестов: ' + error;
+        }
+    }
+</script>
+{% endblock %} 

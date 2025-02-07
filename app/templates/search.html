@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2>Поиск в результатах распознавания</h2>
+
+<form action="/search" method="get">
+    <div style="display: flex; justify-content: space-between; align-items: start;">
+        <div class="search-form">
+            <!-- Поиск по ключевому слову -->
+            <label for="keyword">Ключевое слово в тексте:</label>
+            <input type="text" id="keyword" name="keyword" value="{{ keyword or '' }}" />
+            <br><br>
+
+            <!-- Поиск по имени файла -->
+            <label for="filename">Имя файла (содержит):</label>
+            <input type="text" id="filename" name="filename" value="{{ filename or '' }}" />
+            <br><br>
+
+            <!-- Поиск по диапазону дат -->
+            <label for="date_from">Дата от:</label>
+            <input type="date" id="date_from" name="date_from" value="{{ date_from or '' }}" />
+            
+            <label for="date_to">Дата до:</label>
+            <input type="date" id="date_to" name="date_to" value="{{ date_to or '' }}" />
+            <br><br>
+
+            <button type="submit">Найти</button>
+            <a href="/search" class="button" style="text-decoration: none; padding: 1px 6px; border: 1px solid #ccc; display: inline-block; margin-left: 10px;">Сбросить</a>
+        </div>
+
+        <div class="instructions" style="margin-left: 40px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
+            <h4 style="margin-top: 0;">Инструкция:</h4>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>Используйте поля поиска для фильтрации результатов, нажмите кнопку "Найти"</li>
+                <li>Если все поля пустые, то отобразятся все записи</li>
+                <li>Для поиска результатов на конкретную дату заполните "Дата от: дд.мм.гггг"</li>
+                <li>Для сброса полей поиска нажмите кнопку "Сбросить"</li>
+                <li>Нажмите на заголовки столбцов (↕) для сортировки по возрастанию/убыванию</li>
+                <li>Выберите записи для удаления, используя чекбоксы</li>
+                <li>Для выбора нескольких записей используйте "Shift" + клик</li>
+                <li>Нажмите "Удалить выбранные" для удаления записей</li>
+            </ul>
+        </div>
+    </div>
+</form>
+
+<hr>
+<h3>Результаты поиска:</h3>
+
+{% if data %}
+<div id="result">
+    <button onclick="deleteSelected()" style="margin-bottom: 10px;">Удалить выбранные</button>
+    <table border="1">
+        <tr>
+            <th></th>
+            <th style="cursor: pointer;" onclick="sortTable(1)">Дата/время ↕</th>
+            <th style="cursor: pointer;" onclick="sortTable(2)">Имя файла ↕</th>
+            <th style="cursor: pointer;" onclick="sortTable(3)">Распознанный текст ↕</th>
+        </tr>
+        {% for item in data %}
+        <tr>
+            <td><input type="checkbox" class="record-checkbox" data-filename="{{ item.file_name }}"></td>
+            <td>{{ item.date_time }}</td>
+            <td>
+                {% if item.file_name != "--" %}
+                    {% if item.file_name.startswith('repository/files/') %}
+                        {% if item.file_exists %}
+                            <a href="/static/{{ item.file_name }}" target="_blank" title="Открыть изображение">{{ item.file_name.split('/')[-1] }}</a>
+                        {% else %}
+                            {{ item.file_name.split('/')[-1] }} (файл удален)
+                        {% endif %}
+                    {% else %}
+                        {{ item.file_name }}
+                    {% endif %}
+                {% else %}
+                    {{ item.file_name }}
+                {% endif %}
+            </td>
+            <td>{{ item.ocr_txt }}</td>
+        </tr>
+        {% endfor %}
+    </table>
+</div>
+
+<script>
+    let lastChecked = null;
+    
+    // Обработчик для чекбоксов
+    document.querySelectorAll('.record-checkbox').forEach(checkbox => {
+        checkbox.addEventListener('click', function(e) {
+            if (!lastChecked) {
+                lastChecked = this;
+                return;
+            }
+
+            if (e.shiftKey) {
+                const checkboxes = Array.from(document.querySelectorAll('.record-checkbox'));
+                const start = checkboxes.indexOf(this);
+                const end = checkboxes.indexOf(lastChecked);
+                
+                checkboxes
+                    .slice(Math.min(start, end), Math.max(start, end) + 1)
+                    .forEach(cb => cb.checked = lastChecked.checked);
+            }
+
+            lastChecked = this;
+        });
+    });
+
+    async function deleteSelected() {
+        const checkboxes = document.getElementsByClassName('record-checkbox');
+        const selectedFiles = [];
+        
+        for (let checkbox of checkboxes) {
+            if (checkbox.checked) {
+                selectedFiles.push(checkbox.dataset.filename);
+            }
+        }
+
+        if (selectedFiles.length === 0) {
+            alert('Выберите записи для удаления');
+            return;
+        }
+
+        const fileList = selectedFiles.map(file => `\n- ${file}`).join('');
+        if (!confirm(`Вы уверены, что хотите удалить ${selectedFiles.length} ${getFilesWord(selectedFiles.length)}?${fileList}`)) {
+            return;
+        }
+
+        try {
+            const response = await fetch('/delete_records', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ filenames: selectedFiles })
+            });
+
+            if (response.ok) {
+                location.reload();
+            } else {
+                alert('Ошибка при удалении записей');
+            }
+        } catch (error) {
+            console.error('Ошибка:', error);
+            alert('Произошла ошибка при удалении записей');
+        }
+    }
+
+    // Функция для правильного склонения слова "файл"
+    function getFilesWord(count) {
+        if (count % 10 === 1 && count % 100 !== 11) {
+            return 'файл';
+        } else if ([2, 3, 4].includes(count % 10) && ![12, 13, 14].includes(count % 100)) {
+            return 'файла';
+        } else {
+            return 'файлов';
+        }
+    }
+
+    let sortOrders = {
+        1: true, // true для прямой сортировки
+        2: true,
+        3: true
+    };
+
+    function sortTable(columnIndex) {
+        const table = document.querySelector('table');
+        const rows = Array.from(table.rows).slice(1); // Пропускаем заголовок
+        const isAscending = sortOrders[columnIndex];
+
+        // Сортируем строки
+        rows.sort((a, b) => {
+            let aValue = a.cells[columnIndex].textContent;
+            let bValue = b.cells[columnIndex].textContent;
+
+            // Для даты используем специальную сортировку
+            if (columnIndex === 1) {
+                return isAscending ? 
+                    new Date(aValue) - new Date(bValue) :
+                    new Date(bValue) - new Date(aValue);
+            }
+
+            // Для текста используем локальное сравнение
+            return isAscending ?
+                aValue.localeCompare(bValue) :
+                bValue.localeCompare(aValue);
+        });
+
+        // Меняем направление сортировки для следующего клика
+        sortOrders[columnIndex] = !isAscending;
+
+        // Обновляем отображение стрелок в заголовках
+        const headers = table.rows[0].cells;
+        headers[columnIndex].textContent = headers[columnIndex].textContent.replace(
+            /[↑↓]?$/,
+            isAscending ? '↑' : '↓'
+        );
+
+        // Перестраиваем таблицу
+        rows.forEach(row => table.appendChild(row));
+    }
+</script>
+{% else %}
+<p>Нет данных.</p>
+{% endif %}
+{% endblock %} 
