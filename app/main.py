@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile, Body
+from fastapi import FastAPI, File, UploadFile, Body, Form
 from fastapi.responses import HTMLResponse, JSONResponse
 from fastapi.templating import Jinja2Templates
 from starlette.requests import Request
@@ -54,7 +54,7 @@ async def admin_page(request: Request):
     )
 
 @app.post("/upload/")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
     """Загружает файл и возвращает информацию о нем."""
     content = await file.read()
     current_datetime = datetime.now()
@@ -67,7 +67,7 @@ async def upload_file(file: UploadFile = File(...)):
         f.write(content)          
     
     ocr = Tesseract()
-    result = ocr.ocr_recognize2(temp_file_path, 'rus+eng')    
+    result = ocr.ocr_recognize2(temp_file_path, lang)    
     
     if result["status"] == False:
         # Если файл не распознан - удаляем его и записываем ошибку в БД
@@ -224,6 +224,12 @@ async def send_email(data: dict):
             status_code=500,
             content={"error": str(e)}
         )
+
+@app.get("/get_languages/")
+async def get_languages():
+    """Возвращает список доступных языков"""
+    ocr = Tesseract()
+    return ocr.get_languages()
 
 #uvicorn app.main:app --reload
 #python post_file_to_server.py
