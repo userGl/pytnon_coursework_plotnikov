@@ -14,6 +14,9 @@ import shutil
 
 from app.tesseract import Tesseract
 from repository.repository import repository
+from app.notification_service import notification_service, EmailConfig
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
 
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
@@ -25,13 +28,30 @@ REPOSITORY_FILES_DIR.mkdir(parents=True, exist_ok=True)
 # Монтируем директорию temp как статическую
 app.mount("/static/app/temp", StaticFiles(directory="app/temp"), name="temp")
 
+# Создаем пул потоков для асинхронных задач
+executor = ThreadPoolExecutor()
+
 @app.get("/", response_class=HTMLResponse)
 async def base(request: Request):
     return templates.TemplateResponse(request, "base.html")
 
 @app.get("/admin/", response_class=HTMLResponse)
 async def admin_page(request: Request):    
-    return templates.TemplateResponse(request, "admin.html", {"request": request})
+    # Получаем настройки email из базы
+    email_config = repository.get_email_settings()
+    
+    # Если есть настройки, инициализируем сервис уведомлений
+    if email_config:
+        config = EmailConfig(**email_config)
+        notification_service.configure_email(config)
+    
+    return templates.TemplateResponse(
+        "admin.html", 
+        {
+            "request": request,
+            "email_config": email_config
+        }
+    )
 
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...)):
@@ -148,6 +168,62 @@ async def delete_records(filenames: List[str] = Body(..., embed=True)):
 
 # Обновляем монтирование статических файлов
 app.mount("/static/repository/files", StaticFiles(directory="repository/files"), name="repository_files")
+
+@app.post("/admin/email_config")
+async def save_email_config(config: EmailConfig):
+    """Сохраняет настройки SMTP"""
+    try:
+        if repository.save_email_settings(config.dict()):
+            notification_service.configure_email(config)
+            return {"status": "success"}
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Ошибка при сохранении в базу данных"}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+@app.post("/send_email/")
+async def send_email(data: dict):
+    """Отправляет распознанный текст через уведомления"""
+    if not notification_service.get_email_config():
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Email не настроен"}
+        )
+
+    try:
+        success = await asyncio.wait_for(
+            asyncio.get_event_loop().run_in_executor(
+                executor,
+                notification_service.notify_all,
+                data["to_email"],
+                "Результат распознавания текста",
+                data["text"]
+            ),
+            timeout=60.0
+        )
+
+        if success:
+            return {"status": "success"}
+        else:
+            return JSONResponse(
+                status_code=500,
+                content={"error": "Ошибка при отправке уведомления"}
+            )
+    except asyncio.TimeoutError:
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Превышено время ожидания отправки (1 минута)"}
+        )
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 #uvicorn app.main:app --reload
 #python post_file_to_server.py

@@ -1,20 +1,36 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Здесь будем распознавать документы</h2>
-<form id="uploadForm">
-    <input type="file" id="fileInput" style="display: none;">
-    <button type="button" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
-    <p id="selectedFileName"></p>
-    <button type="button" onclick="uploadFile()">Запустить распознавание</button>
-</form>
+<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 20px;">
+    <h2 style="margin: 0;">Здесь будем распознавать документы</h2>
+    
+    <!-- Блок отправки email -->
+    <div class="email-section" style="background-color: #f8f9fa; border-radius: 5px; padding: 10px; min-width: 300px;">
+        <h3 style="margin: 0 0 5px 0; font-size: 1em;">Отправка результата</h3>
+        <div style="display: flex; gap: 10px; align-items: center;">
+            <input type="email" id="toEmail" placeholder="Email получателя" style="flex: 1; padding: 5px;">
+            <button onclick="sendEmail()" id="emailButton" disabled style="white-space: nowrap;">Отправить результат</button>
+        </div>
+        <div id="status" style="text-align: center; margin-top: 5px; font-size: 0.9em;"></div>
+    </div>
+</div>
 
-<div id="result"></div>
+<!-- Основной контент -->
+<div class="upload-section">
+    <form id="uploadForm">
+        <input type="file" id="fileInput" style="display: none;">
+        <button type="button" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
+        <button type="button" onclick="uploadFile()">Запустить распознавание</button>
+        <span id="selectedFileName"></span>
+    </form>
+
+    <div id="result" style="margin-top: 20px; min-height: 100px;"></div>
+</div>
 
 <script>
     document.getElementById('fileInput').addEventListener('change', function () {
         const fileName = this.files[0] ? this.files[0].name : 'Файл не выбран';
-        document.getElementById('selectedFileName').textContent = 'Выбранный файл: ' + fileName;
+        document.getElementById('selectedFileName').textContent = fileName;
     });
 
     async function uploadFile() {
@@ -34,10 +50,51 @@
             });
             const data = await response.json();
             document.getElementById('result').textContent = data.text;
+            document.getElementById('emailButton').disabled = false;
         } catch (error) {
             console.error('Ошибка:', error);
             alert('Произошла ошибка при загрузке файла');
         }
+    }
+
+    function sendEmail() {
+        const toEmail = document.getElementById('toEmail').value;
+        const recognizedText = document.getElementById('result').textContent;
+
+        if (!toEmail) {
+            alert('Пожалуйста, введите email получателя');
+            return;
+        }
+
+        if (!recognizedText) {
+            alert('Сначала выполните распознавание текста');
+            return;
+        }
+
+        document.getElementById('status').textContent = 'Отправка...';
+
+        fetch('/send_email/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                to_email: toEmail,
+                text: recognizedText
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                document.getElementById('status').textContent = 'Отправлено';
+            } else {
+                response.json().then(error => {
+                    document.getElementById('status').textContent = 'Ошибка: ' + (error.error || 'Неизвестная ошибка');
+                });
+            }
+        })
+        .catch(error => {
+            document.getElementById('status').textContent = 'Ошибка отправки';
+        });
     }
 </script>
 {% endblock %}

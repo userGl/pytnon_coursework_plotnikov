@@ -31,6 +31,17 @@ class OcrData(Base):
             'status': self.status
         }
 
+class EmailSettings(Base):
+    """Модель для хранения настроек SMTP"""
+    __tablename__ = 'email_settings'
+
+    id = Column(Integer, primary_key=True)
+    smtp_server = Column(String)
+    smtp_port = Column(Integer)
+    smtp_user = Column(String)
+    smtp_password = Column(String)
+    from_email = Column(String)
+
 class Repository(ABC):
     """Абстрактный базовый класс репозитория"""
     
@@ -65,6 +76,16 @@ class Repository(ABC):
     @abstractmethod
     def delete_by_filename(self, file_name: str) -> bool:
         """Удаляет записи по имени файла и соответствующий файл"""
+        pass
+
+    @abstractmethod
+    def save_email_settings(self, config: dict) -> bool:
+        """Сохраняет настройки email"""
+        pass
+
+    @abstractmethod
+    def get_email_settings(self) -> Optional[dict]:
+        """Получает настройки email"""
         pass
 
 class SQLAlchemyRepository(Repository):
@@ -187,6 +208,39 @@ class SQLAlchemyRepository(Repository):
         except Exception as e:
             print(f"Ошибка при удалении данных: {e}")
             return False
+
+    def save_email_settings(self, config: dict) -> bool:
+        """Сохраняет настройки email"""
+        try:
+            with self._get_session() as session:
+                # Удаляем старые настройки
+                session.query(EmailSettings).delete()
+                
+                # Добавляем новые
+                settings = EmailSettings(**config)
+                session.add(settings)
+                return True
+        except Exception as e:
+            print(f"Ошибка при сохранении настроек email: {e}")
+            return False
+
+    def get_email_settings(self) -> Optional[dict]:
+        """Получает настройки email"""
+        try:
+            with self._get_session() as session:
+                settings = session.query(EmailSettings).first()
+                if settings:
+                    return {
+                        'smtp_server': settings.smtp_server,
+                        'smtp_port': settings.smtp_port,
+                        'smtp_user': settings.smtp_user,
+                        'smtp_password': settings.smtp_password,
+                        'from_email': settings.from_email
+                    }
+                return None
+        except Exception as e:
+            print(f"Ошибка при получении настроек email: {e}")
+            return None
 
 # Создаем единственный экземпляр репозитория
 repository = SQLAlchemyRepository()
