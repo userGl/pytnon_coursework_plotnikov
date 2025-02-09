@@ -2,9 +2,11 @@ from abc import ABC, abstractmethod
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
+from email.mime.application import MIMEApplication
 from pydantic import BaseModel
 from typing import Optional, List
 import logging
+import os
 
 # Настраиваем логирование
 logging.basicConfig(level=logging.INFO)
@@ -33,11 +35,26 @@ class EmailNotifier(NotificationObserver):
     def notify(self, recipient: str, subject: str, message: str) -> bool:
         try:
             logger.info(f"Начинаем отправку email для {recipient}")
+            
+            # Создаем временный файл
+            temp_file = "temp_ocr.txt"
+            with open(temp_file, "w", encoding="utf-8") as f:
+                f.write(message)
+            
+            # Создаем составное сообщение
             msg = MIMEMultipart()
             msg['From'] = self.config.from_email
             msg['To'] = recipient
             msg['Subject'] = subject
-            msg.attach(MIMEText(message, 'plain'))
+            
+            # Добавляем текст в тело письма
+            msg.attach(MIMEText("Результат распознавания во вложении"))
+            
+            # Добавляем файл как вложение
+            with open(temp_file, "rb") as f:
+                part = MIMEApplication(f.read(), Name="recognized_text.txt")
+                part['Content-Disposition'] = 'attachment; filename="recognized_text.txt"'
+                msg.attach(part)
 
             logger.info(f"Подключаемся к SMTP серверу {self.config.smtp_server}:{self.config.smtp_port}")
             with smtplib.SMTP_SSL(self.config.smtp_server, self.config.smtp_port) as server:
@@ -48,7 +65,11 @@ class EmailNotifier(NotificationObserver):
                 server.send_message(msg)
                 
                 logger.info("Сообщение успешно отправлено")
+                
+            # Удаляем временный файл    
+            os.remove(temp_file)
             return True
+            
         except Exception as e:
             logger.error(f"Ошибка отправки email: {str(e)}")
             return False
