@@ -189,6 +189,12 @@ async def save_email_config(config: EmailConfig):
 @app.post("/send_email/")
 async def send_email(data: dict):
     """Отправляет распознанный текст через уведомления"""
+    # Загружаем актуальную конфигурацию перед отправкой
+    email_config = repository.get_email_settings()
+    if email_config:
+        config = EmailConfig(**email_config)
+        notification_service.configure_email(config)
+
     if not notification_service.get_email_config():
         return JSONResponse(
             status_code=500,
