@@ -5,12 +5,8 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.application import MIMEApplication
 from pydantic import BaseModel
 from typing import Optional, List
-import logging
 import os
-
-# Настраиваем логирование
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+from logger_config import logger
 
 class EmailConfig(BaseModel):
     """Модель для хранения настроек SMTP"""
@@ -30,16 +26,17 @@ class EmailNotifier(NotificationObserver):
     """Отправка уведомлений через email"""
     def __init__(self, config: EmailConfig):
         self.config = config
-        logger.info(f"EmailNotifier инициализирован с сервером {config.smtp_server}:{config.smtp_port}")
+        logger.info(f"Инициализация SMTP: {config.smtp_server}:{config.smtp_port}")
 
     def notify(self, recipient: str, subject: str, message: str) -> bool:
         try:
-            logger.info(f"Начинаем отправку email для {recipient}")
+            logger.debug(f"Подготовка email для {recipient}")
             
             # Создаем временный файл
             temp_file = "temp_ocr.txt"
             with open(temp_file, "w", encoding="utf-8") as f:
                 f.write(message)
+                logger.trace(f"Создан временный файл: {temp_file}")
             
             # Создаем составное сообщение
             msg = MIMEMultipart()
@@ -55,23 +52,23 @@ class EmailNotifier(NotificationObserver):
                 part = MIMEApplication(f.read(), Name="recognized_text.txt")
                 part['Content-Disposition'] = 'attachment; filename="recognized_text.txt"'
                 msg.attach(part)
+                logger.trace("Файл прикреплен к письму")
 
-            logger.info(f"Подключаемся к SMTP серверу {self.config.smtp_server}:{self.config.smtp_port}")
+            logger.debug(f"Подключение к SMTP серверу {self.config.smtp_server}")
             with smtplib.SMTP_SSL(self.config.smtp_server, self.config.smtp_port) as server:
-                logger.info(f"Авторизуемся с пользователем {self.config.smtp_user}")
                 server.login(self.config.smtp_user, self.config.smtp_password)
+                logger.debug("SMTP авторизация успешна")
                 
-                logger.info("Отправляем сообщение")
                 server.send_message(msg)
-                
-                logger.info("Сообщение успешно отправлено")
+                logger.info(f"✉️ Email отправлен: {recipient}")
                 
             # Удаляем временный файл    
             os.remove(temp_file)
+            logger.trace(f"Удален временный файл: {temp_file}")
             return True
             
         except Exception as e:
-            logger.error(f"Ошибка отправки email: {str(e)}")
+            logger.error(f"❌ Ошибка отправки email для {recipient}: {str(e)}")
             return False
 
 class NotificationService:
@@ -79,9 +76,11 @@ class NotificationService:
     def __init__(self):
         self._observers: List[NotificationObserver] = []
         self._email_config: Optional[EmailConfig] = None
+        logger.info("Сервис уведомлений инициализирован")
 
     def configure_email(self, config: EmailConfig):
         """Настройка email уведомлений"""
+        logger.info("Обновление конфигурации SMTP")
         self._email_config = config
         self._observers = [obs for obs in self._observers if not isinstance(obs, EmailNotifier)]
         self.add_observer(EmailNotifier(config))
@@ -90,6 +89,7 @@ class NotificationService:
         """Добавление наблюдателя"""
         if observer not in self._observers:
             self._observers.append(observer)
+            logger.debug(f"Добавлен наблюдатель: {type(observer).__name__}")
 
     def notify_all(self, recipient: str, subject: str, message: str) -> bool:
         """Отправка уведомления через всех наблюдателей"""

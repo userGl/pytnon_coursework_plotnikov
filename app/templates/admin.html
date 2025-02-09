@@ -3,86 +3,143 @@
 {% block content %}
 <h2>Административная панель</h2>
 
-<!-- Секция настройки email -->
-<div class="email-section">
-    <h3>Настройки SMTP</h3>
-    <form id="emailConfigForm">
-        <label for="smtp_server">SMTP сервер:</label>
-        <input type="text" id="smtp_server" name="smtp_server" value="{{ email_config.smtp_server if email_config else '' }}" required>
-        <br><br>
-
-        <label for="smtp_port">SMTP порт:</label>
-        <input type="text" id="smtp_port" name="smtp_port" value="{{ email_config.smtp_port if email_config else '' }}" required>
-        <br><br>
-
-        <label for="smtp_user">SMTP пользователь:</label>
-        <input type="text" id="smtp_user" name="smtp_user" value="{{ email_config.smtp_user if email_config else '' }}" required>
-        <br><br>
-
-        <label for="smtp_password">SMTP пароль:</label>
-        <input type="password" id="smtp_password" name="smtp_password" value="{{ email_config.smtp_password if email_config else '' }}" required>
-        <br><br>
-
-        <label for="from_email">Email отправителя:</label>
-        <input type="email" id="from_email" name="from_email" value="{{ email_config.from_email if email_config else '' }}" required>
-        <br><br>
-
-        <button type="button" onclick="saveEmailConfig()">Сохранить настройки</button>
-    </form>
+<div class="mb-4">
+    <button class="btn btn-primary active" onclick="openTab(event, 'email-settings')">Настройки Email</button>
+    <button class="btn btn-primary" onclick="openTab(event, 'logs')">Логи</button>
 </div>
 
-<hr>
+<div id="email-settings" class="tab-content" style="display: block;">
+    <!-- Секция настройки email -->
+    <div class="email-section">
+        <h3>Настройки SMTP</h3>
+        <form id="emailConfigForm">
+            <label for="smtp_server">SMTP сервер:</label>
+            <input type="text" id="smtp_server" name="smtp_server" value="{{ email_config.smtp_server if email_config else '' }}" required>
+            <br><br>
 
-<!-- Секция тестирования -->
-<div class="test-section">
-    <h3>Запуск тестов</h3>
-    <button onclick="runTest('all')">Все тесты</button>
-    <button onclick="runTest('endpoints')">Тесты эндпоинтов</button>
-    <button onclick="runTest('repository')">Тесты репозитория</button>
-    <button onclick="runTest('ocr')">Тесты OCR</button>
-    <div id="testResult" style="white-space: pre-wrap;"></div>
+            <label for="smtp_port">SMTP порт:</label>
+            <input type="text" id="smtp_port" name="smtp_port" value="{{ email_config.smtp_port if email_config else '' }}" required>
+            <br><br>
+
+            <label for="smtp_user">SMTP пользователь:</label>
+            <input type="text" id="smtp_user" name="smtp_user" value="{{ email_config.smtp_user if email_config else '' }}" required>
+            <br><br>
+
+            <label for="smtp_password">SMTP пароль:</label>
+            <input type="password" id="smtp_password" name="smtp_password" value="{{ email_config.smtp_password if email_config else '' }}" required>
+            <br><br>
+
+            <label for="from_email">Email отправителя:</label>
+            <input type="email" id="from_email" name="from_email" value="{{ email_config.from_email if email_config else '' }}" required>
+            <br><br>
+
+            <button type="button" onclick="saveEmailConfig()">Сохранить настройки</button>
+        </form>
+    </div>
+
+    <hr>
+
+    <!-- Секция тестирования -->
+    <div class="test-section">
+        <h3>Запуск тестов</h3>
+        <button onclick="runTest('all')">Все тесты</button>
+        <button onclick="runTest('endpoints')">Тесты эндпоинтов</button>
+        <button onclick="runTest('repository')">Тесты репозитория</button>
+        <button onclick="runTest('ocr')">Тесты OCR</button>
+        <div id="testResult" style="white-space: pre-wrap;"></div>
+    </div>
+</div>
+
+<div id="logs" class="tab-content">
+    <hr>
+    <h3>Лог программы</h3>
+    <div class="mb-3">
+        <button class="btn btn-primary" onclick="refreshLogs()">Обновить</button>
+        <span class="ms-2">
+            Последние <input type="number" class="form-control d-inline-block" style="width: 100px;" id="lines-count" value="100" min="10" max="1000"> строк
+        </span>
+    </div>
+    <pre class="bg-light p-3" style="max-height: 500px; overflow: auto;" id="log-content"></pre>
 </div>
 
 <script>
-    async function saveEmailConfig() {
-        const formData = {
-            smtp_server: document.getElementById('smtp_server').value,
-            smtp_port: parseInt(document.getElementById('smtp_port').value),
-            smtp_user: document.getElementById('smtp_user').value,
-            smtp_password: document.getElementById('smtp_password').value,
-            from_email: document.getElementById('from_email').value
-        };
-
-        try {
-            const response = await fetch('/admin/email_config', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(formData)
-            });
-
-            if (response.ok) {
-                alert('Настройки SMTP сохранены');
-            } else {
-                alert('Ошибка при сохранении настроек');
-            }
-        } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Произошла ошибка при сохранении настроек');
-        }
+function openTab(evt, tabName) {
+    // Скрываем все вкладки
+    var tabcontent = document.getElementsByClassName("tab-content");
+    for (var i = 0; i < tabcontent.length; i++) {
+        tabcontent[i].style.display = "none";
     }
 
-    async function runTest(testType) {
-        const resultDiv = document.getElementById('testResult');
-        resultDiv.textContent = 'Выполняется...';
-        try {
-            const response = await fetch(`/run_test/${testType}`);
-            const data = await response.json();
-            resultDiv.textContent = data.output || data.error;
-        } catch (error) {
-            resultDiv.textContent = 'Ошибка при выполнении тестов: ' + error;
-        }
+    // Убираем active со всех кнопок
+    var tablinks = document.getElementsByClassName("btn-primary");
+    for (var i = 0; i < tablinks.length; i++) {
+        tablinks[i].classList.remove("active");
     }
+
+    // Показываем выбранную вкладку
+    document.getElementById(tabName).style.display = "block";
+    evt.currentTarget.classList.add("active");
+}
+
+async function saveEmailConfig() {
+    const formData = {
+        smtp_server: document.getElementById('smtp_server').value,
+        smtp_port: parseInt(document.getElementById('smtp_port').value),
+        smtp_user: document.getElementById('smtp_user').value,
+        smtp_password: document.getElementById('smtp_password').value,
+        from_email: document.getElementById('from_email').value
+    };
+
+    try {
+        const response = await fetch('/admin/email_config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(formData)
+        });
+
+        if (response.ok) {
+            alert('Настройки SMTP сохранены');
+        } else {
+            alert('Ошибка при сохранении настроек');
+        }
+    } catch (error) {
+        console.error('Ошибка:', error);
+        alert('Произошла ошибка при сохранении настроек');
+    }
+}
+
+async function runTest(testType) {
+    const resultDiv = document.getElementById('testResult');
+    resultDiv.textContent = 'Выполняется...';
+    try {
+        const response = await fetch(`/run_test/${testType}`);
+        const data = await response.json();
+        resultDiv.textContent = data.output || data.error;
+    } catch (error) {
+        resultDiv.textContent = 'Ошибка при выполнении тестов: ' + error;
+    }
+}
+
+async function refreshLogs() {
+    const lines = document.getElementById('lines-count').value;
+    try {
+        const response = await fetch(`/admin/logs?lines=${lines}`);
+        const data = await response.json();
+        document.getElementById('log-content').textContent = data.logs;
+        // Прокручиваем к последним записям
+        const logContent = document.getElementById('log-content');
+        logContent.scrollTop = logContent.scrollHeight;
+    } catch (error) {
+        console.error('Ошибка при получении логов:', error);
+    }
+}
+
+// Обновляем логи каждые 30 секунд
+setInterval(refreshLogs, 30000);
+
+// Загружаем логи при открытии страницы
+document.addEventListener('DOMContentLoaded', refreshLogs);
 </script>
 {% endblock %} 

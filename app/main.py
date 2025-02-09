@@ -5,6 +5,7 @@ from starlette.requests import Request
 from typing import List
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
+from contextlib import asynccontextmanager
 
 import PIL, os
 from datetime import datetime
@@ -14,9 +15,10 @@ import shutil
 
 from app.tesseract import Tesseract
 from repository.repository import repository
-from app.notification_service import notification_service, EmailConfig
+from notifier.notification_service import notification_service, EmailConfig
 import asyncio
 from concurrent.futures import ThreadPoolExecutor
+from logger_config import logger
 
 app = FastAPI()
 templates = Jinja2Templates(directory="app/templates")
@@ -30,6 +32,15 @@ app.mount("/static/app/temp", StaticFiles(directory="app/temp"), name="temp")
 
 # Создаем пул потоков для асинхронных задач
 executor = ThreadPoolExecutor()
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """Обработчик событий жизненного цикла приложения"""
+    # Код выполняется при запуске
+    logger.info("Приложение запущено")
+    yield
+    # Код выполняется при остановке
+    logger.info("Приложение остановлено")
 
 @app.get("/", response_class=HTMLResponse)
 async def base(request: Request):
@@ -46,9 +57,9 @@ async def admin_page(request: Request):
         notification_service.configure_email(config)
     
     return templates.TemplateResponse(
-        "admin.html", 
-        {
-            "request": request,
+        request=request,  # Первым параметром передаем request
+        name="admin.html", 
+        context={
             "email_config": email_config
         }
     )
@@ -56,30 +67,37 @@ async def admin_page(request: Request):
 @app.post("/upload/")
 async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
     """Загружает файл и возвращает информацию о нем."""
+    logger.info(f"Получен файл: {file.filename}, язык: {lang}")
+    
     content = await file.read()
     current_datetime = datetime.now()
     date_time1 = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
     date_time2 = current_datetime.strftime("%d-%m-%Y %H:%M")    
     temp_file_path = f"app/temp/{date_time1}_{file.filename}"
     
-    # Сначала сохраняем во временную папку
-    with open(temp_file_path, "wb") as f:
-        f.write(content)          
-    
-    ocr = Tesseract()
-    result = ocr.ocr_recognize2(temp_file_path, lang)    
-    
-    if result["status"] == False:
-        # Если файл не распознан - удаляем его и записываем ошибку в БД
-        os.remove(temp_file_path)
-        repository.add("--", result["text"], False)
-    else:
-        # Если файл успешно распознан - перемещаем его в репозиторий
-        repo_file_path = f"repository/files/{date_time1}_{file.filename}"
-        shutil.move(temp_file_path, repo_file_path)
-        repository.add(repo_file_path, result["text"], True)
-    
-    return result
+    try:
+        # Сначала сохраняем во временную папку
+        with open(temp_file_path, "wb") as f:
+            f.write(content)          
+        
+        ocr = Tesseract()
+        result = ocr.ocr_recognize2(temp_file_path, lang)    
+        
+        if result["status"] == False:
+            logger.warning(f"Ошибка распознавания файла {file.filename}: {result['text']}")
+            os.remove(temp_file_path)
+            repository.add("--", result["text"], False)
+        else:
+            logger.info(f"Успешное распознавание файла {file.filename}")
+            repo_file_path = f"repository/files/{date_time1}_{file.filename}"
+            shutil.move(temp_file_path, repo_file_path)
+            repository.add(repo_file_path, result["text"], True)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Ошибка при обработке файла {file.filename}: {str(e)}")
+        raise
 
 # Cтатическая HTML-страница для распознавания текста
 @app.get("/OCR/", response_class=HTMLResponse)
@@ -157,10 +175,13 @@ async def search_page(request: Request,
 async def delete_records(filenames: List[str] = Body(..., embed=True)):
     """Удаляет выбранные записи из базы данных"""
     try:
+        logger.info(f"Запрос на удаление записей: {filenames}")
         for filename in filenames:
             repository.delete_by_filename(filename)
+        logger.info(f"Успешно удалено записей: {len(filenames)}")
         return {"status": "success"}
     except Exception as e:
+        logger.error(f"Ошибка при удалении записей: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"error": str(e)}
@@ -173,14 +194,18 @@ app.mount("/static/repository/files", StaticFiles(directory="repository/files"),
 async def save_email_config(config: EmailConfig):
     """Сохраняет настройки SMTP"""
     try:
+        logger.info("Обновление настроек SMTP")
         if repository.save_email_settings(config.dict()):
             notification_service.configure_email(config)
+            logger.info("Настройки SMTP успешно обновлены")
             return {"status": "success"}
+        logger.error("Ошибка сохранения настроек SMTP в БД")
         return JSONResponse(
             status_code=500,
             content={"error": "Ошибка при сохранении в базу данных"}
         )
     except Exception as e:
+        logger.error(f"Ошибка при сохранении настроек SMTP: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"error": str(e)}
@@ -189,6 +214,8 @@ async def save_email_config(config: EmailConfig):
 @app.post("/send_email/")
 async def send_email(data: dict):
     """Отправляет распознанный текст через уведомления"""
+    logger.info(f"Запрос на отправку email для: {data['to_email']}")
+    
     # Загружаем актуальную конфигурацию перед отправкой
     email_config = repository.get_email_settings()
     if email_config:
@@ -196,6 +223,7 @@ async def send_email(data: dict):
         notification_service.configure_email(config)
 
     if not notification_service.get_email_config():
+        logger.error("Попытка отправки email без настроек SMTP")
         return JSONResponse(
             status_code=500,
             content={"error": "Email не настроен"}
@@ -214,18 +242,22 @@ async def send_email(data: dict):
         )
 
         if success:
+            logger.info(f"Email успешно отправлен: {data['to_email']}")
             return {"status": "success"}
         else:
+            logger.error(f"Ошибка при отправке email: {data['to_email']}")
             return JSONResponse(
                 status_code=500,
                 content={"error": "Ошибка при отправке уведомления"}
             )
     except asyncio.TimeoutError:
+        logger.error(f"Таймаут при отправке email: {data['to_email']}")
         return JSONResponse(
             status_code=500,
             content={"error": "Превышено время ожидания отправки (1 минута)"}
         )
     except Exception as e:
+        logger.error(f"Ошибка при отправке email {data['to_email']}: {str(e)}")
         return JSONResponse(
             status_code=500,
             content={"error": str(e)}
@@ -236,6 +268,30 @@ async def get_languages():
     """Возвращает список доступных языков"""
     ocr = Tesseract()
     return ocr.get_languages()
+
+@app.get("/admin/logs")
+async def get_logs(lines: int = 100):
+    """Возвращает последние строки лога"""
+    try:
+        log_dir = Path("logs")
+        if not log_dir.exists():
+            return {"logs": "Директория логов не найдена"}
+            
+        # Получаем самый свежий файл логов
+        log_files = sorted(log_dir.glob("ocr_app_*.log"), reverse=True)
+        if not log_files:
+            return {"logs": "Файлы логов не найдены"}
+            
+        latest_log = log_files[0]
+        
+        # Читаем последние строки
+        with open(latest_log, 'r', encoding='utf-8') as f:
+            all_lines = f.readlines()
+            return {"logs": "".join(all_lines[-lines:])}
+            
+    except Exception as e:
+        logger.error(f"Ошибка при чтении логов: {str(e)}")
+        return {"logs": f"Ошибка при чтении логов: {str(e)}"}
 
 #uvicorn app.main:app --reload
 #python post_file_to_server.py
