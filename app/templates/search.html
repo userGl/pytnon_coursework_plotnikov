@@ -49,7 +49,15 @@
 
 {% if data %}
 <div id="result">
-    <button onclick="deleteSelected()" style="margin-bottom: 10px;">Удалить выбранные</button>
+    <div style="margin-bottom: 10px;">
+        <button onclick="deleteSelected()" style="margin-right: 10px;">Удалить выбранные</button>
+        
+        <!-- Добавляем блок отправки email -->
+        <input type="email" id="toEmail" placeholder="Email получателя" style="width: 200px;">
+        <button onclick="sendSelectedToEmail()">Отправить выбранные</button>
+        <span id="emailStatus" style="margin-left: 10px;"></span>
+    </div>
+
     <table border="1">
         <tr>
             <th></th>
@@ -199,6 +207,64 @@
 
         // Перестраиваем таблицу
         rows.forEach(row => table.appendChild(row));
+    }
+
+    async function sendSelectedToEmail() {
+        const checkboxes = document.getElementsByClassName('record-checkbox');
+        const selectedTexts = [];
+        
+        for (let checkbox of checkboxes) {
+            if (checkbox.checked) {
+                // Получаем текст из 4-й колонки (индекс 3) строки таблицы
+                const text = checkbox.closest('tr').cells[3].textContent;
+                selectedTexts.push(text);
+            }
+        }
+
+        if (selectedTexts.length === 0) {
+            alert('Выберите записи для отправки');
+            return;
+        }
+
+        const toEmail = document.getElementById('toEmail').value;
+        if (!toEmail) {
+            alert('Введите email получателя');
+            return;
+        }
+
+        const statusElement = document.getElementById('emailStatus');
+        statusElement.textContent = 'Отправка...';
+
+        try {
+            const response = await fetch('/send_email/', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    to_email: toEmail,
+                    text: selectedTexts.join('\n\n---\n\n')  // Разделяем тексты разделителем
+                })
+            });
+
+            if (response.ok) {
+                statusElement.textContent = 'Отправлено';
+                setTimeout(() => {
+                    statusElement.textContent = '';
+                }, 3000);
+            } else {
+                const error = await response.json();
+                statusElement.textContent = 'Ошибка: ' + (error.error || 'Неизвестная ошибка');
+                setTimeout(() => {
+                    statusElement.textContent = '';
+                }, 5000);
+            }
+        } catch (error) {
+            statusElement.textContent = 'Ошибка отправки';
+            setTimeout(() => {
+                statusElement.textContent = '';
+            }, 5000);
+        }
     }
 </script>
 {% else %}
