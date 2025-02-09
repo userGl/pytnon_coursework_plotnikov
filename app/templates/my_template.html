@@ -14,7 +14,7 @@
             </div>
 
             <div style="margin-bottom: 10px;">
-                <div>Выберите языки:</div>
+                <div><b>Выберите языки:</b></div>
                 <div id="languagesList" style="margin-top: 5px;">
                     <!-- Сюда будут добавляться выбранные языки -->
                 </div>
@@ -23,30 +23,36 @@
             <div style="margin-bottom: 10px;">
                 <button type="button" onclick="uploadFile()">Запустить распознавание</button>
             </div>
-
-            <div style="margin-top: 20px;">
-                <div>Отправка результата</div>
-                <div style="margin-top: 5px;">
-                    <input type="email" id="toEmail" placeholder="Email получателя" style="width: 200px;">
-                    <button onclick="sendEmail()" id="emailButton" disabled>Отправить</button>
-                </div>
-                <div id="status" style="margin-top: 5px;"></div>
-            </div>
         </div>
 
         <!-- Правая колонка с инструкцией -->
         <div class="instructions" style="margin-left: 40px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
             <h4 style="margin-top: 0;">Инструкция:</h4>
             <ul style="margin: 0; padding-left: 20px;">
-                <li>Нажмите "Выбрать файл" и укажите изображение. Поддерживаются форматы: PNG, JPEG, TIFF, BMP</li>
-                <li>Текст должен быть четким и контрастным. Рекомендуемое разрешение: не менее 300 dpi</li>
+                <li>Нажмите "Выбрать файл" и укажите изображение. Поддерживаются форматы: PNG, JPEG, TIFF, BMP. Текст должен быть четким и контрастным. Рекомендуемое разрешение: не менее 300 dpi</li>
+                <li>Выберите языки для распознавания. Для лучшего результата выбирайте языки, которые присутствуют в тексте. Первый выбранный язык имеет наивысший приоритет при распознавании</li>
                 <li>Нажмите "Запустить распознавание"</li>
                 <li>Если текст распознан, то результат появится в поле ниже и сохранится в БД</li>
-                <li>Можно отправить результат на email (укажите адрес получателя)</li>
+                <li>Для отправки результата на email:
+                    <ul style="margin-top: 5px;">
+                        <li>Введите адрес получателя</li>
+                        <li>Нажмите "Отправить"</li>
+                    </ul>
+                </li>
             </ul>
         </div>
     </div>
 </form>
+
+<!-- Блок отправки email теперь вне формы -->
+<div style="margin-top: 20px;">
+    <div><b>Отправка результата</b></div>
+    <div style="margin-top: 5px;">
+        <input type="email" id="toEmail" placeholder="Email получателя" style="width: 200px;">
+        <button onclick="sendEmail()" id="emailButton" disabled>Отправить</button>
+    </div>
+    <div id="status" style="margin-top: 5px;"></div>
+</div>
 
 <hr>
 
@@ -205,7 +211,8 @@
             return;
         }
 
-        document.getElementById('status').textContent = 'Отправка...';
+        const statusElement = document.getElementById('status');
+        statusElement.textContent = 'Отправка...';
 
         fetch('/send_email/', {
             method: 'POST',
@@ -219,15 +226,24 @@
         })
         .then(response => {
             if (response.ok) {
-                document.getElementById('status').textContent = 'Отправлено';
+                statusElement.textContent = 'Отправлено';
+                setTimeout(() => {
+                    statusElement.textContent = '';
+                }, 3000);
             } else {
                 response.json().then(error => {
-                    document.getElementById('status').textContent = 'Ошибка: ' + (error.error || 'Неизвестная ошибка');
+                    statusElement.textContent = 'Ошибка: ' + (error.error || 'Неизвестная ошибка');
+                    setTimeout(() => {
+                        statusElement.textContent = '';
+                    }, 5000);
                 });
             }
         })
         .catch(error => {
-            document.getElementById('status').textContent = 'Ошибка отправки';
+            statusElement.textContent = 'Ошибка отправки';
+            setTimeout(() => {
+                statusElement.textContent = '';
+            }, 5000);
         });
     }
 </script>
