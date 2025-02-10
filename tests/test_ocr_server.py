@@ -25,7 +25,8 @@ def send_file(file_path: Path) -> dict:
     try:
         with open(file_path, 'rb') as file:
             files = {'file': (file_path.name, file, 'multipart/form-data')}
-            response = client.post("/upload/", files=files)
+            data = {'lang': 'rus+eng'}
+            response = client.post("/upload/", files=files, data=data)
             return response.json() if response.status_code == 200 else None
     except Exception as e:
         print(f"Ошибка при отправке файла {file_path}: {str(e)}")

@@ -2,21 +2,21 @@
 <html>
 <head>
     <meta charset="UTF-8">
-    <title>FastAPI + Pandas + SQLite Demo</title>
+    <title>OCR Server</title>
 </head>
 <body>
-    <header>
-        <h1>Сервис по распознованию текстовых изображений</h1>
+    <div class="container">
+        <header>
+            <h1>Сервис по распознованию текстовых изображений</h1>
+        </header>
         <nav>
-            <a href="/OCR">OCR</a> |            
-            <a href="/admin">ADMIN</a> |
-            <a href="/">О проекте</a> |
-            
+            <a href="/OCR">OCR</a> |
+            <a href="/search">ПОИСК</a> |
+            <a href="/admin">АДМИН</a> |
+            <a href="/">О ПРОЕКТЕ</a>
         </nav>
         <hr>
-    </header>
-    <main>
         {% block content %}{% endblock %}
-    </main>
+    </div>
 </body>
 </html>

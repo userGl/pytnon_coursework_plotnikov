@@ -1,23 +1,179 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Здесь будем распознавать документы</h2>
+<h2>Распознавание текста</h2>
+
 <form id="uploadForm">
-    <input type="file" id="fileInput" style="display: none;">
-    <button type="button" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
-    <p id="selectedFileName"></p>
-    <button type="button" onclick="uploadFile()">Запустить распознавание</button>
+    <div style="display: flex; justify-content: space-between; align-items: start;">
+        <!-- Левая колонка с опциями -->
+        <div style="width: 350px;">
+            <div style="margin-bottom: 10px;">
+                <input type="file" id="fileInput" style="display: none;">
+                <button type="button" onclick="document.getElementById('fileInput').click()">Выбрать файл</button>
+                <span id="selectedFileName" style="margin-left: 5px;"></span>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <div><b>Выберите языки:</b></div>
+                <div id="languagesList" style="margin-top: 5px;">
+                    <!-- Сюда будут добавляться выбранные языки -->
+                </div>
+            </div>
+
+            <div style="margin-bottom: 10px;">
+                <button type="button" onclick="uploadFile()">Запустить распознавание</button>
+            </div>
+        </div>
+
+        <!-- Правая колонка с инструкцией -->
+        <div class="instructions" style="margin-left: 40px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
+            <h4 style="margin-top: 0;">Инструкция:</h4>
+            <ul style="margin: 0; padding-left: 20px;">
+                <li>Нажмите "Выбрать файл" и укажите изображение. Поддерживаются форматы: PNG, JPEG, TIFF, BMP. Текст должен быть четким и контрастным. Рекомендуемое разрешение: не менее 300 dpi</li>
+                <li>Выберите языки для распознавания. Для лучшего результата выбирайте языки, которые присутствуют в тексте. Первый выбранный язык имеет наивысший приоритет при распознавании</li>
+                <li>Нажмите "Запустить распознавание"</li>
+                <li>Если текст распознан, то результат появится в поле ниже и сохранится в БД</li>
+                <li>Для отправки результата на email:
+                    <ul style="margin-top: 5px;">
+                        <li>Введите адрес получателя</li>
+                        <li>Нажмите "Отправить"</li>
+                    </ul>
+                </li>
+            </ul>
+        </div>
+    </div>
 </form>
-<p id="result">{{text}}</p>
+
+<!-- Блок отправки email теперь вне формы -->
+<div style="margin-top: 20px;">
+    <div><b>Отправка результата</b></div>
+    <div style="margin-top: 5px;">
+        <input type="email" id="toEmail" placeholder="Email получателя" style="width: 200px;">
+        <button onclick="sendEmail()" id="emailButton" disabled>Отправить</button>
+    </div>
+    <div id="status" style="margin-top: 5px;"></div>
+</div>
+
+<hr>
+
+<div style="margin-top: 20px;">
+    <h3 style="margin: 0 0 10px 0;">Распознанный текст:</h3>
+    <div id="result" style="min-height: 100px; border: 1px solid #dee2e6; padding: 10px;"></div>
+</div>
 
 <script>
     document.getElementById('fileInput').addEventListener('change', function () {
         const fileName = this.files[0] ? this.files[0].name : 'Файл не выбран';
-        document.getElementById('selectedFileName').textContent = 'Выбранный файл: ' + fileName;
+        document.getElementById('selectedFileName').textContent = fileName;
     });
 
+    // Загружаем список доступных языков при загрузке страницы
+    let availableLanguages = {};
+
+    fetch('/get_languages/')
+        .then(response => response.json())
+        .then(languages => {
+            availableLanguages = languages;
+            // Добавляем первый селект языка
+            const container = createLanguageSelect(0);
+            document.getElementById('languagesList').appendChild(container);
+        });
+
+    function createLanguageSelect(index) {
+        const container = document.createElement('div');
+        container.className = 'language-container';
+        container.style.display = 'flex';
+        container.style.alignItems = 'center';
+        container.style.gap = '5px';
+        container.style.marginBottom = '5px';
+        
+        const select = document.createElement('select');
+        select.className = 'language-select';
+        select.dataset.index = index;
+
+        // Добавляем опции языков
+        for (const [code, name] of Object.entries(availableLanguages)) {
+            const option = document.createElement('option');
+            option.value = code;
+            option.textContent = code;
+            select.appendChild(option);
+        }
+
+        const upButton = document.createElement('button');
+        upButton.textContent = '↑';
+        upButton.type = 'button';
+        upButton.style.padding = '0 5px';
+        upButton.onclick = () => moveLanguage(index, 'up');
+
+        const downButton = document.createElement('button');
+        downButton.textContent = '↓';
+        downButton.type = 'button';
+        downButton.style.padding = '0 5px';
+        downButton.onclick = () => moveLanguage(index, 'down');
+
+        const addButton = document.createElement('button');
+        addButton.textContent = '+';
+        addButton.type = 'button';
+        addButton.style.padding = '0 5px';
+        addButton.onclick = addLanguageSelect;
+
+        const removeButton = document.createElement('button');
+        removeButton.textContent = 'X';
+        removeButton.type = 'button';
+        removeButton.style.padding = '0 5px';
+        removeButton.onclick = () => removeLanguage(container);
+
+        container.appendChild(select);
+        container.appendChild(upButton);
+        container.appendChild(downButton);
+        container.appendChild(addButton);
+        container.appendChild(removeButton);
+
+        return container;
+    }
+
+    function moveLanguage(index, direction) {
+        const containers = document.querySelectorAll('.language-container');
+        const currentContainer = containers[index];
+        
+        if (direction === 'up' && index > 0) {
+            currentContainer.parentNode.insertBefore(currentContainer, containers[index - 1]);
+            updateIndexes();
+        } else if (direction === 'down' && index < containers.length - 1) {
+            currentContainer.parentNode.insertBefore(containers[index + 1], currentContainer);
+            updateIndexes();
+        }
+    }
+
+    function updateIndexes() {
+        document.querySelectorAll('.language-select').forEach((select, index) => {
+            select.dataset.index = index;
+        });
+    }
+
+    function removeLanguage(container) {
+        if (document.querySelectorAll('.language-container').length > 1) {
+            container.remove();
+            updateIndexes();
+        }
+    }
+
+    function addLanguageSelect() {
+        const index = document.querySelectorAll('.language-container').length;
+        const container = createLanguageSelect(index);
+        document.getElementById('languagesList').appendChild(container);
+    }
+
+    function getSelectedLanguages() {
+        const selects = document.querySelectorAll('.language-select');
+        return Array.from(selects).map(select => select.value).join('+');
+    }
+
+    // Обновляем функцию uploadFile для отправки выбранных языков
     async function uploadFile() {
         const fileInput = document.getElementById('fileInput');
+        const languages = getSelectedLanguages();
+        
         if (!fileInput.files[0]) {
             alert('Пожалуйста, выберите файл');
             return;
@@ -25,6 +181,7 @@
 
         const formData = new FormData();
         formData.append('file', fileInput.files[0]);
+        formData.append('lang', languages);
 
         try {
             const response = await fetch('/upload/', {
@@ -33,10 +190,61 @@
             });
             const data = await response.json();
             document.getElementById('result').textContent = data.text;
+            document.getElementById('emailButton').disabled = false;
         } catch (error) {
             console.error('Ошибка:', error);
             alert('Произошла ошибка при загрузке файла');
         }
+    }
+
+    function sendEmail() {
+        const toEmail = document.getElementById('toEmail').value;
+        const recognizedText = document.getElementById('result').textContent;
+
+        if (!toEmail) {
+            alert('Пожалуйста, введите email получателя');
+            return;
+        }
+
+        if (!recognizedText) {
+            alert('Сначала выполните распознавание текста');
+            return;
+        }
+
+        const statusElement = document.getElementById('status');
+        statusElement.textContent = 'Отправка...';
+
+        fetch('/send_email/', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                to_email: toEmail,
+                text: recognizedText
+            })
+        })
+        .then(response => {
+            if (response.ok) {
+                statusElement.textContent = 'Отправлено';
+                setTimeout(() => {
+                    statusElement.textContent = '';
+                }, 3000);
+            } else {
+                response.json().then(error => {
+                    statusElement.textContent = 'Ошибка: ' + (error.error || 'Неизвестная ошибка');
+                    setTimeout(() => {
+                        statusElement.textContent = '';
+                    }, 5000);
+                });
+            }
+        })
+        .catch(error => {
+            statusElement.textContent = 'Ошибка отправки';
+            setTimeout(() => {
+                statusElement.textContent = '';
+            }, 5000);
+        });
     }
 </script>
 {% endblock %}

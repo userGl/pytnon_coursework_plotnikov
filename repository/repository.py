@@ -3,8 +3,9 @@
 from abc import ABC, abstractmethod
 from datetime import datetime
 from typing import List, Dict, Any, Optional
+from pathlib import Path
 
-from sqlalchemy import create_engine, Column, Integer, String, DateTime
+from sqlalchemy import create_engine, Column, Integer, String, DateTime, func, or_
 from sqlalchemy.orm import declarative_base, sessionmaker
 from contextlib import contextmanager
 
@@ -21,9 +22,6 @@ class OcrData(Base):
     ocr_txt = Column(String)
     status = Column(String)
 
-    def __repr__(self):
-        return f"<OcrData (file_name='{self.file_name}', date_time={self.date_time})>"
-
     def to_dict(self) -> Dict[str, Any]:
         """Преобразование записи в словарь"""
         return {
@@ -32,6 +30,17 @@ class OcrData(Base):
             'ocr_txt': self.ocr_txt,
             'status': self.status
         }
+
+class EmailSettings(Base):
+    """Модель для хранения настроек SMTP"""
+    __tablename__ = 'email_settings'
+
+    id = Column(Integer, primary_key=True)
+    smtp_server = Column(String)
+    smtp_port = Column(Integer)
+    smtp_user = Column(String)
+    smtp_password = Column(String)
+    from_email = Column(String)
 
 class Repository(ABC):
     """Абстрактный базовый класс репозитория"""
@@ -57,7 +66,26 @@ class Repository(ABC):
         pass
 
     @abstractmethod
-    def search_by_text(self, query: str) -> List[Dict[str, Any]]:
+    def search_documents(self, keyword: Optional[str] = None, 
+                        filename: Optional[str] = None,
+                        date_from: Optional[datetime] = None,
+                        date_to: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        """Поиск документов по различным критериям"""
+        pass
+
+    @abstractmethod
+    def delete_by_filename(self, file_name: str) -> bool:
+        """Удаляет записи по имени файла и соответствующий файл"""
+        pass
+
+    @abstractmethod
+    def save_email_settings(self, config: dict) -> bool:
+        """Сохраняет настройки email"""
+        pass
+
+    @abstractmethod
+    def get_email_settings(self) -> Optional[dict]:
+        """Получает настройки email"""
         pass
 
 class SQLAlchemyRepository(Repository):
@@ -71,42 +99,45 @@ class SQLAlchemyRepository(Repository):
     @contextmanager
     def _get_session(self):
         """Контекстный менеджер для сессии базы данных"""
-        session = self.Session() # Создание сессии
+        session = self.Session()
         try:
             yield session
-            session.commit() # Коммит изменений при успехе
+            session.commit()
         except Exception as e:
-            session.rollback() #Отмена изменений при ошибке
+            session.rollback()
             raise e
         finally:
             session.close()
 
     def add(self, file_name: str, ocr_txt: str, status: bool) -> bool:
-        """Добавить новую запись OCR в базу данных"""
         try:
             with self._get_session() as session:
+                ocr_txt = str(ocr_txt).strip() if ocr_txt else ""
+                file_name = str(file_name).strip() if file_name else ""
+                
                 new_ocr_data = OcrData(
                     file_name=file_name,
                     ocr_txt=ocr_txt,
                     status=str(status)
                 )
                 session.add(new_ocr_data)
-            return True
+                return True
         except Exception as e:
             print(f"Ошибка при добавлении данных: {e}")
             return False
 
     def get_all(self) -> List[Dict[str, Any]]:
-        """Получить все записи OCR из базы данных"""
         try:
             with self._get_session() as session:
-                return [record.to_dict() for record in session.query(OcrData).all()]
+                return [record.to_dict() 
+                        for record in session.query(OcrData)
+                        .order_by(OcrData.date_time.desc())  # Сортировка по убыванию даты
+                        .all()]
         except Exception as e:
             print(f"Ошибка при получении данных: {e}")
             return []
 
     def get_by_status(self, status: bool) -> List[Dict[str, Any]]:
-        """Получить записи по статусу"""
         try:
             with self._get_session() as session:
                 return [record.to_dict() 
@@ -117,7 +148,6 @@ class SQLAlchemyRepository(Repository):
             return []
 
     def get_by_date(self, date: datetime) -> List[Dict[str, Any]]:
-        """Получить записи по дате"""
         try:
             with self._get_session() as session:
                 return [record.to_dict() 
@@ -129,20 +159,88 @@ class SQLAlchemyRepository(Repository):
             print(f"Ошибка при получении данных по дате: {e}")
             return []
 
-    def search_by_text(self, query: str) -> List[Dict[str, Any]]:
-        pass
+    def search_documents(self, keyword: Optional[str] = None, 
+                        filename: Optional[str] = None,
+                        date_from: Optional[datetime] = None,
+                        date_to: Optional[datetime] = None) -> List[Dict[str, Any]]:
+        try:
+            with self._get_session() as session:
+                query = session.query(OcrData)
+                
+                if keyword:
+                    search_conditions = [
+                        OcrData.ocr_txt.ilike(f'%{keyword.lower()}%'),
+                        OcrData.ocr_txt.ilike(f'%{keyword.upper()}%'),
+                        OcrData.ocr_txt.ilike(f'%{keyword.capitalize()}%')
+                    ]
+                    query = query.filter(or_(*search_conditions))
+                
+                if filename:
+                    query = query.filter(OcrData.file_name.ilike(f'%{filename}%'))
+                
+                if date_from:
+                    query = query.filter(OcrData.date_time >= date_from)
+                
+                if date_to:
+                    query = query.filter(OcrData.date_time <= date_to)
+                
+                return [record.to_dict() 
+                        for record in query
+                        .order_by(OcrData.date_time.desc())  # Сортировка по убыванию даты
+                        .all()]
+        except Exception as e:
+            print(f"Ошибка при поиске данных: {e}")
+            return []
 
     def delete_by_filename(self, file_name: str) -> bool:
-        """Удаляет записи по имени файла"""
+        """Удаляет записи по имени файла и соответствующий файл"""
         try:
             with self._get_session() as session:
                 records = session.query(OcrData).filter(OcrData.file_name == file_name).all()
                 for record in records:
-                    session.delete(record)
+                    # Если это распознанный файл, удаляем его из файловой системы
+                    if record.file_name.startswith('repository/files/'):
+                        file_path = Path(record.file_name)
+                        if file_path.exists():
+                            file_path.unlink()  # Удаляем файл
+                    session.delete(record)  # Удаляем запись из БД
                 return True
         except Exception as e:
             print(f"Ошибка при удалении данных: {e}")
             return False
+
+    def save_email_settings(self, config: dict) -> bool:
+        """Сохраняет настройки email"""
+        try:
+            with self._get_session() as session:
+                # Удаляем старые настройки
+                session.query(EmailSettings).delete()
+                
+                # Добавляем новые
+                settings = EmailSettings(**config)
+                session.add(settings)
+                return True
+        except Exception as e:
+            print(f"Ошибка при сохранении настроек email: {e}")
+            return False
+
+    def get_email_settings(self) -> Optional[dict]:
+        """Получает настройки email"""
+        try:
+            with self._get_session() as session:
+                settings = session.query(EmailSettings).first()
+                if settings:
+                    return {
+                        'smtp_server': settings.smtp_server,
+                        'smtp_port': settings.smtp_port,
+                        'smtp_user': settings.smtp_user,
+                        'smtp_password': settings.smtp_password,
+                        'from_email': settings.from_email
+                    }
+                return None
+        except Exception as e:
+            print(f"Ошибка при получении настроек email: {e}")
+            return None
 
 # Создаем единственный экземпляр репозитория
 repository = SQLAlchemyRepository()

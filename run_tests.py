@@ -1,5 +1,6 @@
 import sys
 import os
+import pytest
 
 def run_tests():
     """Запуск всех тестов проекта"""    
