@@ -16,7 +16,7 @@ class OcrData(Base):
     """Модель данных OCR"""
     __tablename__ = 'ocr_data'
 
-    id = Column(Integer, primary_key=True)
+    id = Column(Integer, primary_key=True)  # Автоинкремент по умолчанию
     date_time = Column(DateTime, default=datetime.now)
     file_name = Column(String)
     ocr_txt = Column(String)
@@ -25,6 +25,7 @@ class OcrData(Base):
     def to_dict(self) -> Dict[str, Any]:
         """Преобразование записи в словарь"""
         return {
+            'id': self.id,
             'date_time': self.date_time.strftime('%Y-%m-%d %H:%M:%S'),
             'file_name': self.file_name,
             'ocr_txt': self.ocr_txt,
@@ -86,6 +87,11 @@ class Repository(ABC):
     @abstractmethod
     def get_email_settings(self) -> Optional[dict]:
         """Получает настройки email"""
+        pass
+
+    @abstractmethod
+    def delete_by_id(self, record_id: int):
+        """Удаление записи по ID"""
         pass
 
 class SQLAlchemyRepository(Repository):
@@ -241,6 +247,26 @@ class SQLAlchemyRepository(Repository):
         except Exception as e:
             print(f"Ошибка при получении настроек email: {e}")
             return None
+
+    def delete_by_id(self, record_id: int):
+        """Удаление записи по ID"""
+        try:
+            with self._get_session() as session:
+                # Получаем имя файла перед удалением
+                record = session.query(OcrData).filter(OcrData.id == record_id).first()
+                if record:
+                    file_name = record.file_name
+                    # Удаляем файл, если он существует и не является специальным маркером "--"
+                    if file_name != "--" and file_name.startswith('repository/files/'):
+                        file_path = Path(file_name)
+                        if file_path.exists():
+                            file_path.unlink()
+                    session.delete(record)  # Удаляем запись из БД
+                    return True
+                return False
+        except Exception as e:
+            print(f"Ошибка при удалении записи {record_id}: {str(e)}")
+            return False
 
 # Создаем единственный экземпляр репозитория
 repository = SQLAlchemyRepository()

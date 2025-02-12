@@ -72,7 +72,6 @@ async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
     content = await file.read()
     current_datetime = datetime.now()
     date_time1 = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
-    date_time2 = current_datetime.strftime("%d-%m-%Y %H:%M")    
     temp_file_path = f"app/temp/{date_time1}_{file.filename}"
     
     try:
@@ -84,10 +83,11 @@ async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
         result = ocr.ocr_recognize2(temp_file_path, lang)    
         
         if result["status"] == False:
+            # Если распознавание не удалось - просто логируем ошибку
             logger.warning(f"Ошибка распознавания файла {file.filename}: {result['text']}")
             os.remove(temp_file_path)
-            repository.add("--", result["text"], False)
         else:
+            # Только успешные результаты сохраняем в БД
             logger.info(f"Успешное распознавание файла {file.filename}")
             repo_file_path = f"repository/files/{date_time1}_{file.filename}"
             shutil.move(temp_file_path, repo_file_path)
@@ -172,13 +172,13 @@ async def search_page(request: Request,
     )
 
 @app.post("/delete_records")
-async def delete_records(filenames: List[str] = Body(..., embed=True)):
+async def delete_records(record_ids: List[int] = Body(..., embed=True)):
     """Удаляет выбранные записи из базы данных"""
     try:
-        logger.info(f"Запрос на удаление записей: {filenames}")
-        for filename in filenames:
-            repository.delete_by_filename(filename)
-        logger.info(f"Успешно удалено записей: {len(filenames)}")
+        logger.info(f"Запрос на удаление записей: {record_ids}")
+        for record_id in record_ids:
+            repository.delete_by_id(record_id)
+        logger.info(f"Успешно удалено записей: {len(record_ids)}")
         return {"status": "success"}
     except Exception as e:
         logger.error(f"Ошибка при удалении записей: {str(e)}")

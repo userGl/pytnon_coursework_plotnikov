@@ -68,13 +68,15 @@
     <table border="1">
         <tr>
             <th></th>
+            <th>ID</th>
             <th style="cursor: pointer;" onclick="sortTable(1)">Дата/время ↕</th>
             <th style="cursor: pointer;" onclick="sortTable(2)">Имя файла ↕</th>
             <th style="cursor: pointer;" onclick="sortTable(3)">Распознанный текст ↕</th>
         </tr>
         {% for item in data %}
         <tr>
-            <td><input type="checkbox" class="record-checkbox" data-filename="{{ item.file_name }}"></td>
+            <td><input type="checkbox" class="record-checkbox" data-id="{{ item.id }}"></td>
+            <td>{{ item.id }}</td>
             <td>{{ item.date_time }}</td>
             <td>
                 {% if item.file_name != "--" %}
@@ -122,44 +124,46 @@
         });
     });
 
-    async function deleteSelected() {
+    function deleteSelected() {
         const checkboxes = document.getElementsByClassName('record-checkbox');
-        const selectedFiles = [];
+        const selectedIds = [];
         
         for (let checkbox of checkboxes) {
             if (checkbox.checked) {
-                selectedFiles.push(checkbox.dataset.filename);
+                selectedIds.push(parseInt(checkbox.dataset.id));
             }
         }
 
-        if (selectedFiles.length === 0) {
+        if (selectedIds.length === 0) {
             alert('Выберите записи для удаления');
             return;
         }
 
-        const fileList = selectedFiles.map(file => `\n- ${file}`).join('');
-        if (!confirm(`Вы уверены, что хотите удалить ${selectedFiles.length} ${getFilesWord(selectedFiles.length)}?${fileList}`)) {
+        const recordCount = selectedIds.length;
+        if (!confirm(`Вы уверены, что хотите удалить ${recordCount} ${getFilesWord(recordCount)}?`)) {
             return;
         }
 
-        try {
-            const response = await fetch('/delete_records', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ filenames: selectedFiles })
-            });
-
+        fetch('/delete_records', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                record_ids: selectedIds
+            })
+        })
+        .then(response => {
             if (response.ok) {
                 location.reload();
             } else {
                 alert('Ошибка при удалении записей');
             }
-        } catch (error) {
+        })
+        .catch(error => {
             console.error('Ошибка:', error);
             alert('Произошла ошибка при удалении записей');
-        }
+        });
     }
 
     // Функция для правильного склонения слова "файл"
