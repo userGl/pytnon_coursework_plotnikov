@@ -53,17 +53,12 @@ def test_ocr(test_file, expected_result):
     
     # Проверяем ответ сервера
     assert result is not None, "Нет ответа от сервера"
-    assert result["status"] == expected_result["status"], \
-        f"Неверный статус для файла {test_file}"
+    assert result["status"] == expected_result["status"]
     
     # Проверяем текст ответа
     if expected_result["status"]:
-        # Для успешного распознавания сравниваем тексты
-        assert result["text"].strip() == expected_result["text"].strip(), \
-            f"Неверный текст для файла {test_file}"
+        assert result["text"].strip() == expected_result["text"].strip()
     else:
-        # Для ошибок проверяем, что текст ошибки содержит ожидаемое сообщение
-        assert expected_result["text"].lower() in result["text"].lower(), \
-            f"Неверное сообщение об ошибке для файла {test_file}" 
+        assert expected_result["text"].lower() in result["text"].lower()
         
 # pytest tests/test_ocr_server.py -v

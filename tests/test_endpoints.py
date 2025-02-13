@@ -20,6 +20,10 @@ def test_ocr_endpoint():
 
 def test_get_records():
     """Тест endpoint получения записей"""
-    response = client.get("/records/")
+    # Проверяем получение всех записей (без параметров)
+    response = client.get("/records/search")
     assert response.status_code == 200
-    assert isinstance(response.json(), list) 
+    
+    # Проверяем поиск с параметрами
+    response = client.get("/records/search?keyword=test")
+    assert response.status_code == 200 

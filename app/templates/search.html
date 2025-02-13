@@ -247,7 +247,7 @@
         statusElement.textContent = 'Отправка...';
 
         try {
-            const response = await fetch('/send_email/', {
+            const response = await fetch('/notifier/send_email/', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -276,6 +276,30 @@
                 statusElement.textContent = '';
             }, 5000);
         }
+    }
+
+    function sendToEmail(text) {
+        const email = prompt('Введите email для отправки:');
+        if (!email) return;
+
+        fetch('/notifier/send_email/', {  // Обновленный путь
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({
+                to_email: email,
+                text: text
+            })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.status === 'success') {
+                alert('Письмо отправлено');
+            } else {
+                alert('Ошибка при отправке: ' + data.error);
+            }
+        });
     }
 </script>
 {% else %}

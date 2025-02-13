@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container">
+    <h2>О проекте</h2>
+    
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3>Описание</h3>
+            <p>Микросервис для распознавания текста с изображений. Поддерживает различные языки и форматы изображений.</p>
+            
+            <h4>Основные функции:</h4>
+            <ul>
+                <li>Загрузка изображений в форматах PNG, JPEG, TIFF, BMP</li>
+                <li>Распознавание текста с помощью Tesseract OCR</li>
+                <li>Поддержка множества языков (русский, английский и др.)</li>
+                <li>Сохранение результатов в базе данных SQLite</li>
+                <li>Поиск по распознанным текстам</li>
+                <li>Отправка результатов на email</li>
+                <li>Административная панель с настройками и логами</li>
+            </ul>
+
+            <h4>Структура проекта:</h4>
+            <ul>
+                <li><code>app/</code> - основной код приложения
+                    <ul>
+                        <li>main.py - FastAPI приложение</li>
+                        <li>tesseract.py - работа с OCR</li>
+                        <li>templates/ - HTML шаблоны</li>
+                    </ul>
+                </li>
+                <li><code>repository/</code> - работа с базой данных
+                    <ul>
+                        <li>repository.py - CRUD операции</li>
+                        <li>files/ - хранение изображений</li>
+                    </ul>
+                </li>
+                <li><code>notifier/</code> - отправка уведомлений
+                    <ul>
+                        <li>notification_service.py - работа с SMTP</li>
+                    </ul>
+                </li>
+                <li><code>tests/</code> - модульные тесты</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3>Основные возможности</h3>
+            <ul>
+                <li>Распознавание текста (OCR) с изображений</li>
+                <li>Поддержка нескольких языков</li>
+                <li>Хранение результатов в базе данных</li>
+                <li>Поиск по распознанным текстам</li>
+                <li>Отправка результатов на email</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-body">
+            <h3>API Endpoints</h3>
+            <h4>OCR</h4>
+            <ul>
+                <li><code>POST /OCR/upload/</code> - Загрузка и распознавание файла</li>
+                <li><code>GET /OCR/get_languages/</code> - Получение списка языков</li>
+            </ul>
+            
+            <h4>Записи</h4>
+            <ul>
+                <li><code>GET /records/search</code> - Поиск записей</li>
+                <li><code>POST /records/delete</code> - Удаление записей</li>
+            </ul>
+            
+            <h4>Email</h4>
+            <ul>
+                <li><code>POST /notifier/send_email/</code> - Отправка текста на email</li>
+            </ul>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h3>Технологии</h3>
+            <ul>
+                <li>FastAPI - веб-фреймворк</li>
+                <li>Tesseract - движок OCR</li>
+                <li>SQLite - база данных</li>
+                <li>Bootstrap - фронтенд</li>
+                <li>Pytest - тестирование</li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %} 

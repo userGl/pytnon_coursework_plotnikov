@@ -6,6 +6,7 @@ from typing import List
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from contextlib import asynccontextmanager
+import pytest
 
 import PIL, os
 from datetime import datetime
@@ -44,7 +45,9 @@ async def lifespan(app: FastAPI):
 
 @app.get("/", response_class=HTMLResponse)
 async def base(request: Request):
-    return templates.TemplateResponse(request, "base.html")
+    # Перенаправляем на страницу OCR
+    text = "Нет распознаного текста"    
+    return templates.TemplateResponse(request, "ocr.html", {"text": text})
 
 @app.get("/admin/", response_class=HTMLResponse)
 async def admin_page(request: Request):    
@@ -57,7 +60,7 @@ async def admin_page(request: Request):
         notification_service.configure_email(config)
     
     return templates.TemplateResponse(
-        request=request,  # Первым параметром передаем request
+        request=request,
         name="admin.html", 
         context={
             "email_config": email_config
@@ -99,37 +102,105 @@ async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
         logger.error(f"Ошибка при обработке файла {file.filename}: {str(e)}")
         raise
 
-# Cтатическая HTML-страница для распознавания текста
-@app.get("/OCR/", response_class=HTMLResponse)
-async def static_page(request: Request):
-    text="Нет распознаного текста"    
-    return templates.TemplateResponse(request, "my_template.html", {"text": text}) 
+@app.get("/records/search")
+async def search_records(
+    request: Request,
+    keyword: Optional[str] = None,
+    filename: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
+):
+    """Поиск записей по параметрам. Без параметров возвращает все записи."""
+    # Преобразуем строковые даты в datetime объекты
+    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+    
+    # Если есть параметры поиска, выполняем поиск
+    if any([keyword, filename, date_from, date_to]):
+        data = repository.search_documents(
+            keyword=keyword,
+            filename=filename,
+            date_from=date_from_obj,
+            date_to=date_to_obj
+        )
+    else:
+        # Если параметров нет - возвращаем все записи
+        data = repository.get_all()
+    
+    # Проверяем существование файлов
+    for item in data:
+        if item['file_name'].startswith('repository/files/'):
+            item['file_exists'] = Path(item['file_name']).exists()
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "data": data,
+            "keyword": keyword,
+            "filename": filename,
+            "date_from": date_from,
+            "date_to": date_to
+        }
+    )
 
-@app.get("/records/")
-async def get_records():
-    return repository.get_all()
+@app.post("/records/delete")
+async def delete_records(record_ids: List[int] = Body(..., embed=True)):
+    """Удаляет записи по их id"""
+    try:
+        logger.info(f"Запрос на удаление записей: {record_ids}")
+        for record_id in record_ids:
+            repository.delete_by_id(record_id)
+        logger.info(f"Успешно удалено записей: {len(record_ids)}")
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Ошибка при удалении записей: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 @app.get("/tests/", response_class=HTMLResponse)
 async def test_page(request: Request):
     return templates.TemplateResponse(request, "tests.html")
 
-@app.get("/run_test/{test_type}")
+@app.get("/admin/run_test/{test_type}")
 async def run_test(test_type: str):
-    cmd = {
-        "all": ["pytest", "tests", "-v"],
-        "endpoints": ["pytest", "tests/test_endpoints.py", "-v"],
-        "repository": ["pytest", "tests/test_repository.py", "-v"],
-        "ocr": ["pytest", "tests/test_ocr_server.py", "-v"]
-    }.get(test_type)
-    
-    if not cmd:
-        return JSONResponse(content={"error": "Неизвестный тип теста"})
-
+    """Запуск тестов через админ-панель"""
     try:
-        result = subprocess.run(cmd, capture_output=True, text=True)
-        return JSONResponse(content={"output": result.stdout + (result.stderr or '')})
+        # Определяем какие тесты запускать
+        if test_type == "all":
+            test_path = "tests"
+        elif test_type == "ocr":
+            test_path = "tests/test_ocr_server.py"  # Исправляем имя файла
+        elif test_type in ["endpoints", "repository"]:
+            test_path = f"tests/test_{test_type}.py"
+        else:
+            return {"error": "Неизвестный тип тестов"}
+
+        # Запускаем тесты
+        args = [
+            test_path,
+            "-v",
+            "--tb=short"
+        ]
+        
+        # Перехватываем вывод pytest
+        import io
+        import sys
+        output = io.StringIO()
+        sys.stdout = output
+        
+        pytest.main(args)
+        
+        # Восстанавливаем stdout
+        sys.stdout = sys.__stdout__
+        
+        return {"output": output.getvalue()}
+        
     except Exception as e:
-        return JSONResponse(content={"error": str(e)})
+        logger.error(f"Ошибка при запуске тестов: {str(e)}")
+        return {"error": str(e)}
 
 @app.get("/search/", response_class=HTMLResponse)
 async def search_page(request: Request,
@@ -211,7 +282,7 @@ async def save_email_config(config: EmailConfig):
             content={"error": str(e)}
         )
 
-@app.post("/send_email/")
+@app.post("/notifier/send_email/")
 async def send_email(data: dict):
     """Отправляет распознанный текст через уведомления"""
     logger.info(f"Запрос на отправку email для: {data['to_email']}")
@@ -250,12 +321,6 @@ async def send_email(data: dict):
                 status_code=500,
                 content={"error": "Ошибка при отправке уведомления"}
             )
-    except asyncio.TimeoutError:
-        logger.error(f"Таймаут при отправке email: {data['to_email']}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Превышено время ожидания отправки (1 минута)"}
-        )
     except Exception as e:
         logger.error(f"Ошибка при отправке email {data['to_email']}: {str(e)}")
         return JSONResponse(
@@ -263,7 +328,7 @@ async def send_email(data: dict):
             content={"error": str(e)}
         )
 
-@app.get("/get_languages/")
+@app.get("/OCR/get_languages/")
 async def get_languages():
     """Возвращает список доступных языков"""
     ocr = Tesseract()
@@ -292,6 +357,47 @@ async def get_logs(lines: int = 100):
     except Exception as e:
         logger.error(f"Ошибка при чтении логов: {str(e)}")
         return {"logs": f"Ошибка при чтении логов: {str(e)}"}
+
+# Загрузка и распознавание файла
+@app.post("/OCR/upload/")
+async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
+    """Загружает файл и возвращает информацию о нем."""
+    logger.info(f"Получен файл: {file.filename}, язык: {lang}")
+    
+    content = await file.read()
+    current_datetime = datetime.now()
+    date_time1 = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+    temp_file_path = f"app/temp/{date_time1}_{file.filename}"
+    
+    try:
+        # Сначала сохраняем во временную папку
+        with open(temp_file_path, "wb") as f:
+            f.write(content)          
+        
+        ocr = Tesseract()
+        result = ocr.ocr_recognize2(temp_file_path, lang)    
+        
+        if result["status"] == False:
+            # Если распознавание не удалось - просто логируем ошибку
+            logger.warning(f"Ошибка распознавания файла {file.filename}: {result['text']}")
+            os.remove(temp_file_path)
+        else:
+            # Только успешные результаты сохраняем в БД
+            logger.info(f"Успешное распознавание файла {file.filename}")
+            repo_file_path = f"repository/files/{date_time1}_{file.filename}"
+            shutil.move(temp_file_path, repo_file_path)
+            repository.add(repo_file_path, result["text"], True)
+        
+        return result
+        
+    except Exception as e:
+        logger.error(f"Ошибка при обработке файла {file.filename}: {str(e)}")
+        raise
+
+@app.get("/about/", response_class=HTMLResponse)
+async def about_page(request: Request):
+    """Страница о проекте"""
+    return templates.TemplateResponse(request, "about.html")
 
 #uvicorn app.main:app --reload
 #python post_file_to_server.py

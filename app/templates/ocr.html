@@ -67,10 +67,10 @@
         document.getElementById('selectedFileName').textContent = fileName;
     });
 
-    // Загружаем список доступных языков при загрузке страницы
+    // Загружаем список доступных языков
     let availableLanguages = {};
 
-    fetch('/get_languages/')
+    fetch('/OCR/get_languages/')
         .then(response => response.json())
         .then(languages => {
             availableLanguages = languages;
@@ -169,34 +169,37 @@
         return Array.from(selects).map(select => select.value).join('+');
     }
 
-    // Обновляем функцию uploadFile для отправки выбранных языков
+    // Обновляем функцию отправки файла
     async function uploadFile() {
         const fileInput = document.getElementById('fileInput');
+        const file = fileInput.files[0];
         const languages = getSelectedLanguages();
-        
-        if (!fileInput.files[0]) {
-            alert('Пожалуйста, выберите файл');
+
+        if (!file) {
+            alert('Выберите файл');
             return;
         }
 
         const formData = new FormData();
-        formData.append('file', fileInput.files[0]);
+        formData.append('file', file);
         formData.append('lang', languages);
 
         try {
-            const response = await fetch('/upload/', {
+            const response = await fetch('/OCR/upload/', {
                 method: 'POST',
                 body: formData
             });
-            const data = await response.json();
-            document.getElementById('result').textContent = data.text;
-            document.getElementById('emailButton').disabled = false;
+
+            const result = await response.json();
+            document.getElementById('result').textContent = result.text;
+            document.getElementById('emailButton').disabled = !result.status;
+            
         } catch (error) {
-            console.error('Ошибка:', error);
-            alert('Произошла ошибка при загрузке файла');
+            console.error('Error:', error);
         }
     }
 
+    // Обновляем функцию отправки email
     function sendEmail() {
         const toEmail = document.getElementById('toEmail').value;
         const recognizedText = document.getElementById('result').textContent;
@@ -214,36 +217,27 @@
         const statusElement = document.getElementById('status');
         statusElement.textContent = 'Отправка...';
 
-        fetch('/send_email/', {
+        fetch('/notifier/send_email/', {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json',
+                'Content-Type': 'application/json'
             },
             body: JSON.stringify({
                 to_email: toEmail,
                 text: recognizedText
             })
         })
-        .then(response => {
-            if (response.ok) {
+        .then(response => response.json())
+        .then(result => {
+            if (result.status === 'success') {
                 statusElement.textContent = 'Отправлено';
-                setTimeout(() => {
-                    statusElement.textContent = '';
-                }, 3000);
             } else {
-                response.json().then(error => {
-                    statusElement.textContent = 'Ошибка: ' + (error.error || 'Неизвестная ошибка');
-                    setTimeout(() => {
-                        statusElement.textContent = '';
-                    }, 5000);
-                });
+                statusElement.textContent = 'Ошибка: ' + (result.error || 'Неизвестная ошибка');
             }
         })
         .catch(error => {
             statusElement.textContent = 'Ошибка отправки';
-            setTimeout(() => {
-                statusElement.textContent = '';
-            }, 5000);
+            console.error('Error:', error);
         });
     }
 </script>

@@ -3,6 +3,33 @@ from repository.repository import repository
 from datetime import datetime
 
 def test_add_and_get():
+    """Тест добавления и получения записей"""
+    # Добавляем тестовую запись
+    repository.add("test.txt", "test text", True)
+    
+    # Получаем все записи
+    records = repository.get_all()
+    
+    # Проверяем что запись добавлена
+    assert len(records) > 0
+    assert any(r["file_name"] == "test.txt" for r in records)
+    assert any(r["ocr_txt"] == "test text" for r in records)
+
+def test_get_by_status():
+    """Тест получения записей по статусу"""
+    # Добавляем записи с разными статусами
+    repository.add("success.txt", "success", True)
+    repository.add("error.txt", "error", False)
+    
+    # Получаем успешные записи
+    success_records = repository.get_by_status(True)
+    assert any(r["file_name"] == "success.txt" for r in success_records)
+    
+    # Получаем ошибочные записи
+    error_records = repository.get_by_status(False)
+    assert any(r["file_name"] == "error.txt" for r in error_records)
+
+def test_add_and_get():
     """
     Тест добавления записи и её получения
     """
