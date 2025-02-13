@@ -37,37 +37,17 @@ executor = ThreadPoolExecutor()
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Обработчик событий жизненного цикла приложения"""
-    # Код выполняется при запуске
     logger.info("Приложение запущено")
     yield
-    # Код выполняется при остановке
     logger.info("Приложение остановлено")
 
-@app.get("/", response_class=HTMLResponse)
+# 1. OCR endpoints
+@app.get("/")                     # Главная страница (OCR)
 async def base(request: Request):
-    # Перенаправляем на страницу OCR
     text = "Нет распознаного текста"    
     return templates.TemplateResponse(request, "ocr.html", {"text": text})
 
-@app.get("/admin/", response_class=HTMLResponse)
-async def admin_page(request: Request):    
-    # Получаем настройки email из базы
-    email_config = repository.get_email_settings()
-    
-    # Если есть настройки, инициализируем сервис уведомлений
-    if email_config:
-        config = EmailConfig(**email_config)
-        notification_service.configure_email(config)
-    
-    return templates.TemplateResponse(
-        request=request,
-        name="admin.html", 
-        context={
-            "email_config": email_config
-        }
-    )
-
-@app.post("/upload/")
+@app.post("/OCR/upload/")         # Загрузка и распознавание
 async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
     """Загружает файл и возвращает информацию о нем."""
     logger.info(f"Получен файл: {file.filename}, язык: {lang}")
@@ -78,7 +58,6 @@ async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
     temp_file_path = f"app/temp/{date_time1}_{file.filename}"
     
     try:
-        # Сначала сохраняем во временную папку
         with open(temp_file_path, "wb") as f:
             f.write(content)          
         
@@ -86,11 +65,9 @@ async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
         result = ocr.ocr_recognize2(temp_file_path, lang)    
         
         if result["status"] == False:
-            # Если распознавание не удалось - просто логируем ошибку
             logger.warning(f"Ошибка распознавания файла {file.filename}: {result['text']}")
             os.remove(temp_file_path)
         else:
-            # Только успешные результаты сохраняем в БД
             logger.info(f"Успешное распознавание файла {file.filename}")
             repo_file_path = f"repository/files/{date_time1}_{file.filename}"
             shutil.move(temp_file_path, repo_file_path)
@@ -102,187 +79,14 @@ async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
         logger.error(f"Ошибка при обработке файла {file.filename}: {str(e)}")
         raise
 
-@app.get("/records/search")
-async def search_records(
-    request: Request,
-    keyword: Optional[str] = None,
-    filename: Optional[str] = None,
-    date_from: Optional[str] = None,
-    date_to: Optional[str] = None
-):
-    """Поиск записей по параметрам. Без параметров возвращает все записи."""
-    # Преобразуем строковые даты в datetime объекты
-    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
-    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
-    
-    # Если есть параметры поиска, выполняем поиск
-    if any([keyword, filename, date_from, date_to]):
-        data = repository.search_documents(
-            keyword=keyword,
-            filename=filename,
-            date_from=date_from_obj,
-            date_to=date_to_obj
-        )
-    else:
-        # Если параметров нет - возвращаем все записи
-        data = repository.get_all()
-    
-    # Проверяем существование файлов
-    for item in data:
-        if item['file_name'].startswith('repository/files/'):
-            item['file_exists'] = Path(item['file_name']).exists()
-    
-    return templates.TemplateResponse(
-        request=request,
-        name="search.html",
-        context={
-            "data": data,
-            "keyword": keyword,
-            "filename": filename,
-            "date_from": date_from,
-            "date_to": date_to
-        }
-    )
+@app.get("/OCR/get_languages/")   # Получение списка языков
+async def get_languages():
+    """Возвращает список доступных языков"""
+    ocr = Tesseract()
+    return ocr.get_languages()
 
-@app.post("/records/delete")
-async def delete_records(record_ids: List[int] = Body(..., embed=True)):
-    """Удаляет записи по их id"""
-    try:
-        logger.info(f"Запрос на удаление записей: {record_ids}")
-        for record_id in record_ids:
-            repository.delete_by_id(record_id)
-        logger.info(f"Успешно удалено записей: {len(record_ids)}")
-        return {"status": "success"}
-    except Exception as e:
-        logger.error(f"Ошибка при удалении записей: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
-
-@app.get("/tests/", response_class=HTMLResponse)
-async def test_page(request: Request):
-    return templates.TemplateResponse(request, "tests.html")
-
-@app.get("/admin/run_test/{test_type}")
-async def run_test(test_type: str):
-    """Запуск тестов через админ-панель"""
-    try:
-        # Определяем какие тесты запускать
-        if test_type == "all":
-            test_path = "tests"
-        elif test_type == "ocr":
-            test_path = "tests/test_ocr_server.py"  # Исправляем имя файла
-        elif test_type in ["endpoints", "repository"]:
-            test_path = f"tests/test_{test_type}.py"
-        else:
-            return {"error": "Неизвестный тип тестов"}
-
-        # Запускаем тесты
-        args = [
-            test_path,
-            "-v",
-            "--tb=short"
-        ]
-        
-        # Перехватываем вывод pytest
-        import io
-        import sys
-        output = io.StringIO()
-        sys.stdout = output
-        
-        pytest.main(args)
-        
-        # Восстанавливаем stdout
-        sys.stdout = sys.__stdout__
-        
-        return {"output": output.getvalue()}
-        
-    except Exception as e:
-        logger.error(f"Ошибка при запуске тестов: {str(e)}")
-        return {"error": str(e)}
-
-@app.get("/search/", response_class=HTMLResponse)
-async def search_page(request: Request,
-                     keyword: Optional[str] = None,
-                     filename: Optional[str] = None,
-                     date_from: Optional[str] = None,
-                     date_to: Optional[str] = None):
-    
-    # Преобразуем строковые даты в datetime объекты
-    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
-    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
-    
-    # Если есть параметры поиска, выполняем поиск
-    if any([keyword, filename, date_from, date_to]):
-        data = repository.search_documents(
-            keyword=keyword,
-            filename=filename,
-            date_from=date_from_obj,
-            date_to=date_to_obj
-        )
-    else:
-        # Если параметров нет - возвращаем все записи
-        data = repository.get_all()
-    
-    # Проверяем существование файлов
-    for item in data:
-        if item['file_name'].startswith('repository/files/'):
-            item['file_exists'] = Path(item['file_name']).exists()
-    
-    return templates.TemplateResponse(
-        "search.html",
-        {
-            "request": request,
-            "data": data,
-            "keyword": keyword,
-            "filename": filename,
-            "date_from": date_from,
-            "date_to": date_to
-        }
-    )
-
-@app.post("/delete_records")
-async def delete_records(record_ids: List[int] = Body(..., embed=True)):
-    """Удаляет выбранные записи из базы данных"""
-    try:
-        logger.info(f"Запрос на удаление записей: {record_ids}")
-        for record_id in record_ids:
-            repository.delete_by_id(record_id)
-        logger.info(f"Успешно удалено записей: {len(record_ids)}")
-        return {"status": "success"}
-    except Exception as e:
-        logger.error(f"Ошибка при удалении записей: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
-
-# Обновляем монтирование статических файлов
-app.mount("/static/repository/files", StaticFiles(directory="repository/files"), name="repository_files")
-
-@app.post("/admin/email_config")
-async def save_email_config(config: EmailConfig):
-    """Сохраняет настройки SMTP"""
-    try:
-        logger.info("Обновление настроек SMTP")
-        if repository.save_email_settings(config.dict()):
-            notification_service.configure_email(config)
-            logger.info("Настройки SMTP успешно обновлены")
-            return {"status": "success"}
-        logger.error("Ошибка сохранения настроек SMTP в БД")
-        return JSONResponse(
-            status_code=500,
-            content={"error": "Ошибка при сохранении в базу данных"}
-        )
-    except Exception as e:
-        logger.error(f"Ошибка при сохранении настроек SMTP: {str(e)}")
-        return JSONResponse(
-            status_code=500,
-            content={"error": str(e)}
-        )
-
-@app.post("/notifier/send_email/")
+# 2. Notifier endpoints
+@app.post("/notifier/send_email/")  # Отправка на email
 async def send_email(data: dict):
     """Отправляет распознанный текст через уведомления"""
     logger.info(f"Запрос на отправку email для: {data['to_email']}")
@@ -328,13 +132,125 @@ async def send_email(data: dict):
             content={"error": str(e)}
         )
 
-@app.get("/OCR/get_languages/")
-async def get_languages():
-    """Возвращает список доступных языков"""
-    ocr = Tesseract()
-    return ocr.get_languages()
+# 3. Records endpoints
+@app.get("/search/")              # Страница поиска
+async def search_page(request: Request,
+                     keyword: Optional[str] = None,
+                     filename: Optional[str] = None,
+                     date_from: Optional[str] = None,
+                     date_to: Optional[str] = None):
+    """Страница поиска записей"""
+    # Преобразуем строковые даты в datetime объекты
+    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+    
+    # Если есть параметры поиска, выполняем поиск
+    if any([keyword, filename, date_from, date_to]):
+        data = repository.search_documents(
+            keyword=keyword,
+            filename=filename,
+            date_from=date_from_obj,
+            date_to=date_to_obj
+        )
+    else:
+        # Если параметров нет - возвращаем все записи
+        data = repository.get_all()
+    
+    # Проверяем существование файлов
+    for item in data:
+        if item['file_name'].startswith('repository/files/'):
+            item['file_exists'] = Path(item['file_name']).exists()
+    
+    return templates.TemplateResponse(
+        "search.html",
+        {
+            "request": request,
+            "data": data,
+            "keyword": keyword,
+            "filename": filename,
+            "date_from": date_from,
+            "date_to": date_to
+        }
+    )
 
-@app.get("/admin/logs")
+@app.get("/records/search")       # API для поиска
+async def search_records(
+    request: Request,
+    keyword: Optional[str] = None,
+    filename: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
+):
+    """Поиск записей по параметрам. Без параметров возвращает все записи."""
+    # Преобразуем строковые даты в datetime объекты
+    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+    
+    # Если есть параметры поиска, выполняем поиск
+    if any([keyword, filename, date_from, date_to]):
+        data = repository.search_documents(
+            keyword=keyword,
+            filename=filename,
+            date_from=date_from_obj,
+            date_to=date_to_obj
+        )
+    else:
+        # Если параметров нет - возвращаем все записи
+        data = repository.get_all()
+    
+    # Проверяем существование файлов
+    for item in data:
+        if item['file_name'].startswith('repository/files/'):
+            item['file_exists'] = Path(item['file_name']).exists()
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="search.html",
+        context={
+            "data": data,
+            "keyword": keyword,
+            "filename": filename,
+            "date_from": date_from,
+            "date_to": date_to
+        }
+    )
+
+@app.post("/records/delete")      # Удаление записей
+async def delete_records(record_ids: List[int] = Body(..., embed=True)):
+    """Удаляет записи по их id"""
+    try:
+        logger.info(f"Запрос на удаление записей: {record_ids}")
+        for record_id in record_ids:
+            repository.delete_by_id(record_id)
+        logger.info(f"Успешно удалено записей: {len(record_ids)}")
+        return {"status": "success"}
+    except Exception as e:
+        logger.error(f"Ошибка при удалении записей: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+# 4. Admin endpoints
+@app.get("/admin/")               # Панель администратора
+async def admin_page(request: Request):    
+    # Получаем настройки email из базы
+    email_config = repository.get_email_settings()
+    
+    # Если есть настройки, инициализируем сервис уведомлений
+    if email_config:
+        config = EmailConfig(**email_config)
+        notification_service.configure_email(config)
+    
+    return templates.TemplateResponse(
+        request=request,
+        name="admin.html", 
+        context={
+            "email_config": email_config
+        }
+    )
+
+@app.get("/admin/logs")          # Получение логов
 async def get_logs(lines: int = 100):
     """Возвращает последние строки лога"""
     try:
@@ -358,46 +274,68 @@ async def get_logs(lines: int = 100):
         logger.error(f"Ошибка при чтении логов: {str(e)}")
         return {"logs": f"Ошибка при чтении логов: {str(e)}"}
 
-# Загрузка и распознавание файла
-@app.post("/OCR/upload/")
-async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
-    """Загружает файл и возвращает информацию о нем."""
-    logger.info(f"Получен файл: {file.filename}, язык: {lang}")
-    
-    content = await file.read()
-    current_datetime = datetime.now()
-    date_time1 = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
-    temp_file_path = f"app/temp/{date_time1}_{file.filename}"
-    
+@app.get("/admin/run_test/{test_type}")  # Запуск тестов
+async def run_test(test_type: str):
+    """Запуск тестов через админ-панель"""
     try:
-        # Сначала сохраняем во временную папку
-        with open(temp_file_path, "wb") as f:
-            f.write(content)          
-        
-        ocr = Tesseract()
-        result = ocr.ocr_recognize2(temp_file_path, lang)    
-        
-        if result["status"] == False:
-            # Если распознавание не удалось - просто логируем ошибку
-            logger.warning(f"Ошибка распознавания файла {file.filename}: {result['text']}")
-            os.remove(temp_file_path)
+        # Определяем какие тесты запускать
+        if test_type == "all":
+            test_path = "tests"
+        elif test_type == "ocr":
+            test_path = "tests/test_ocr_server.py"
+        elif test_type in ["endpoints", "repository"]:
+            test_path = f"tests/test_{test_type}.py"
         else:
-            # Только успешные результаты сохраняем в БД
-            logger.info(f"Успешное распознавание файла {file.filename}")
-            repo_file_path = f"repository/files/{date_time1}_{file.filename}"
-            shutil.move(temp_file_path, repo_file_path)
-            repository.add(repo_file_path, result["text"], True)
+            return {"error": "Неизвестный тип тестов"}
+
+        args = [test_path, "-v", "--tb=short"]
         
-        return result
+        # Перехватываем вывод pytest
+        import io
+        import sys
+        output = io.StringIO()
+        sys.stdout = output
+        
+        pytest.main(args)
+        
+        # Восстанавливаем stdout
+        sys.stdout = sys.__stdout__
+        
+        return {"output": output.getvalue()}
         
     except Exception as e:
-        logger.error(f"Ошибка при обработке файла {file.filename}: {str(e)}")
-        raise
+        logger.error(f"Ошибка при запуске тестов: {str(e)}")
+        return {"error": str(e)}
 
-@app.get("/about/", response_class=HTMLResponse)
+@app.post("/admin/email_config")  # Настройка SMTP
+async def save_email_config(config: EmailConfig):
+    """Сохраняет настройки SMTP"""
+    try:
+        logger.info("Обновление настроек SMTP")
+        if repository.save_email_settings(config.dict()):
+            notification_service.configure_email(config)
+            logger.info("Настройки SMTP успешно обновлены")
+            return {"status": "success"}
+        logger.error("Ошибка сохранения настроек SMTP в БД")
+        return JSONResponse(
+            status_code=500,
+            content={"error": "Ошибка при сохранении в базу данных"}
+        )
+    except Exception as e:
+        logger.error(f"Ошибка при сохранении настроек SMTP: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
+
+# 5. About endpoint
+@app.get("/about/")               # О проекте
 async def about_page(request: Request):
     """Страница о проекте"""
     return templates.TemplateResponse(request, "about.html")
+
+# Монтирование статических файлов
+app.mount("/static/repository/files", StaticFiles(directory="repository/files"), name="repository_files")
 
 #uvicorn app.main:app --reload
 #python post_file_to_server.py
