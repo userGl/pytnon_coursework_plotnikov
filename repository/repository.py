@@ -8,6 +8,8 @@ from pathlib import Path
 from sqlalchemy import create_engine, Column, Integer, String, DateTime, func, or_
 from sqlalchemy.orm import declarative_base, sessionmaker
 from contextlib import contextmanager
+from sqlalchemy.sql import text
+from logger_config import logger
 
 # Создаем базовый класс для моделей
 Base = declarative_base()
@@ -92,6 +94,11 @@ class Repository(ABC):
     @abstractmethod
     def delete_by_id(self, record_id: int):
         """Удаление записи по ID"""
+        pass
+
+    @abstractmethod
+    def get_by_id(self, record_id: int) -> Optional[dict]:
+        """Получение записи по ID"""
         pass
 
 class SQLAlchemyRepository(Repository):
@@ -267,6 +274,16 @@ class SQLAlchemyRepository(Repository):
         except Exception as e:
             print(f"Ошибка при удалении записи {record_id}: {str(e)}")
             return False
+
+    def get_by_id(self, record_id: int) -> Optional[dict]:
+        """Получение записи по ID"""
+        try:
+            with self._get_session() as session:
+                record = session.query(OcrData).filter(OcrData.id == record_id).first()
+                return record.to_dict() if record else None
+        except Exception as e:
+            print(f"Ошибка при получении записи {record_id}: {str(e)}")
+            return None
 
 # Создаем единственный экземпляр репозитория
 repository = SQLAlchemyRepository()

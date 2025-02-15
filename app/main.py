@@ -133,13 +133,15 @@ async def send_email(data: dict):
         )
 
 # 3. Records endpoints
-@app.get("/search/")              # Страница поиска
-async def search_page(request: Request,
-                     keyword: Optional[str] = None,
-                     filename: Optional[str] = None,
-                     date_from: Optional[str] = None,
-                     date_to: Optional[str] = None):
-    """Страница поиска записей"""
+@app.get("/records/")              # <-- Обратите внимание на слеш в конце
+async def records_page(
+    request: Request,
+    keyword: Optional[str] = None,
+    filename: Optional[str] = None,
+    date_from: Optional[str] = None,
+    date_to: Optional[str] = None
+):
+    """HTML страница поиска записей"""
     # Преобразуем строковые даты в datetime объекты
     date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
     date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
@@ -160,7 +162,7 @@ async def search_page(request: Request,
     for item in data:
         if item['file_name'].startswith('repository/files/'):
             item['file_exists'] = Path(item['file_name']).exists()
-    
+
     return templates.TemplateResponse(
         "search.html",
         {
@@ -173,15 +175,14 @@ async def search_page(request: Request,
         }
     )
 
-@app.get("/records/search")       # API для поиска
+@app.get("/records/search")
 async def search_records(
-    request: Request,
     keyword: Optional[str] = None,
     filename: Optional[str] = None,
     date_from: Optional[str] = None,
     date_to: Optional[str] = None
 ):
-    """Поиск записей по параметрам. Без параметров возвращает все записи."""
+    """API endpoint для поиска записей"""
     # Преобразуем строковые даты в datetime объекты
     date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
     date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
@@ -202,22 +203,12 @@ async def search_records(
     for item in data:
         if item['file_name'].startswith('repository/files/'):
             item['file_exists'] = Path(item['file_name']).exists()
-    
-    return templates.TemplateResponse(
-        request=request,
-        name="search.html",
-        context={
-            "data": data,
-            "keyword": keyword,
-            "filename": filename,
-            "date_from": date_from,
-            "date_to": date_to
-        }
-    )
 
-@app.post("/records/delete")      # Удаление записей
+    return data
+
+@app.post("/records/delete")
 async def delete_records(record_ids: List[int] = Body(..., embed=True)):
-    """Удаляет записи по их id"""
+    """API endpoint для удаления записей"""
     try:
         logger.info(f"Запрос на удаление записей: {record_ids}")
         for record_id in record_ids:

@@ -1,80 +1,100 @@
 {% extends "base.html" %}
 
 {% block content %}
-<h2>Панель администратора</h2>
+<h2>Панель администрирования</h2>
 
+<!-- Навигация по вкладкам -->
 <div class="btn-group mb-3">
-    <button class="btn btn-primary active" onclick="openTab(event, 'logs')">Логи</button>
-    <button class="btn btn-primary" onclick="openTab(event, 'tests')">Тесты</button>
-    <button class="btn btn-primary" onclick="openTab(event, 'email-settings')">Настройки Email</button>
+    <button class="btn btn-primary" onclick="showTab('logs')">Логи</button>
+    <button class="btn btn-primary" onclick="showTab('tests')">Тесты</button>
+    <button class="btn btn-primary" onclick="showTab('settings')">Email</button>
 </div>
 
-<!-- Логи -->
+<!-- Вкладка логов (теперь первая) -->
 <div id="logs" class="tab-content">
     <h3>Логи системы</h3>
-    <button onclick="refreshLogs()" class="btn btn-secondary mb-3">Обновить</button>
-    <pre class="bg-light p-3" style="max-height: 500px; overflow: auto;" id="log-content"></pre>
+    <div class="mb-3">
+        <div class="input-group" style="max-width: 300px;">
+            <label class="input-group-text">Количество строк:</label>
+            <input type="number" class="form-control" id="logLines" value="100" min="1" max="1000">
+            <button onclick="getLogs()" class="btn btn-primary">Обновить</button>
+        </div>
+    </div>
+    <pre id="logContent" class="bg-light p-3" style="max-height: 500px; overflow: auto;"></pre>
 </div>
 
-<!-- Тесты -->
+<!-- Вкладка тестов -->
 <div id="tests" class="tab-content" style="display: none;">
     <h3>Запуск тестов</h3>
     <div class="mb-3">
         <button onclick="runTests('all')" class="btn btn-primary me-2">Все тесты</button>
-        <button onclick="runTests('endpoints')" class="btn btn-primary me-2">Тесты endpoints</button>
         <button onclick="runTests('ocr')" class="btn btn-primary me-2">Тесты OCR</button>
-        <button onclick="runTests('repository')" class="btn btn-primary">Тесты репозитория</button>
+        <button onclick="runTests('endpoints')" class="btn btn-primary me-2">Тесты endpoints</button>
+        <button onclick="runTests('repository')" class="btn btn-primary">Тесты repository</button>
     </div>
     <pre id="testResults" class="bg-light p-3" style="max-height: 500px; overflow: auto;"></pre>
 </div>
 
-<!-- Настройки Email -->
-<div id="email-settings" class="tab-content" style="display: none;">
+<!-- Вкладка настроек -->
+<div id="settings" class="tab-content" style="display: none;">
     <h3>Настройки SMTP</h3>
-    <form id="emailForm" style="max-width: 400px;">
+    <form id="emailConfigForm" style="max-width: 400px;">
         <div style="margin-bottom: 20px;">
             <label style="display: block; margin-bottom: 5px;">SMTP сервер:</label>
             <input type="text" class="form-control" id="smtp_server" value="{{ email_config.smtp_server if email_config else '' }}" required>
         </div>
+        
         <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px;">SMTP порт:</label>
+            <label style="display: block; margin-bottom: 5px;">Порт:</label>
             <input type="number" class="form-control" id="smtp_port" value="{{ email_config.smtp_port if email_config else '' }}" required>
         </div>
+        
         <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px;">SMTP пользователь:</label>
+            <label style="display: block; margin-bottom: 5px;">Пользователь:</label>
             <input type="text" class="form-control" id="smtp_user" value="{{ email_config.smtp_user if email_config else '' }}" required>
         </div>
+        
         <div style="margin-bottom: 20px;">
-            <label style="display: block; margin-bottom: 5px;">SMTP пароль:</label>
+            <label style="display: block; margin-bottom: 5px;">Пароль:</label>
             <input type="password" class="form-control" id="smtp_password" value="{{ email_config.smtp_password if email_config else '' }}" required>
         </div>
-        <div style="margin-bottom: 20px;">
+        
+        <div style="margin-bottom: 30px;">
             <label style="display: block; margin-bottom: 5px;">Email отправителя:</label>
             <input type="email" class="form-control" id="from_email" value="{{ email_config.from_email if email_config else '' }}" required>
         </div>
+        
         <button type="submit" class="btn btn-primary">Сохранить</button>
     </form>
 </div>
 
 <script>
-function openTab(evt, tabName) {
-    var i, tabcontent, tablinks;
+// При загрузке страницы показываем логи
+window.onload = function() {
+    showTab('logs');
+    getLogs(); // Сразу загружаем логи
+};
+
+function showTab(tabId) {
+    // Скрываем все вкладки
+    document.querySelectorAll('.tab-content').forEach(tab => {
+        tab.style.display = 'none';
+    });
     
-    tabcontent = document.getElementsByClassName("tab-content");
-    for (i = 0; i < tabcontent.length; i++) {
-        tabcontent[i].style.display = "none";
-    }
+    // Убираем активный класс у всех кнопок
+    document.querySelectorAll('.btn-primary').forEach(button => {
+        button.classList.remove('active');
+    });
     
-    tablinks = document.getElementsByClassName("btn");
-    for (i = 0; i < tablinks.length; i++) {
-        tablinks[i].className = tablinks[i].className.replace(" active", "");
-    }
+    // Показываем выбранную вкладку
+    document.getElementById(tabId).style.display = 'block';
     
-    document.getElementById(tabName).style.display = "block";
-    evt.currentTarget.className += " active";
+    // Делаем кнопку активной
+    event.target.classList.add('active');
 }
 
-document.getElementById('emailForm').onsubmit = function(e) {
+// Существующий код для настроек SMTP
+document.getElementById('emailConfigForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     const data = {
         smtp_server: document.getElementById('smtp_server').value,
@@ -84,53 +104,51 @@ document.getElementById('emailForm').onsubmit = function(e) {
         from_email: document.getElementById('from_email').value
     };
 
-    fetch('/admin/email_config', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify(data)
-    })
-    .then(response => response.json())
-    .then(result => {
+    try {
+        const response = await fetch('/admin/email_config', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(data)
+        });
+        const result = await response.json();
         if (result.status === 'success') {
             alert('Настройки сохранены');
         } else {
             alert('Ошибка: ' + result.error);
         }
-    });
-};
-
-function refreshLogs() {
-    fetch('/admin/logs')
-        .then(response => response.json())
-        .then(data => {
-            document.getElementById('log-content').textContent = data.logs;
-        });
-}
-
-function runTests(type) {
-    const resultsContainer = document.getElementById('testResults');
-    resultsContainer.textContent = 'Запуск тестов...';
-    
-    fetch(`/admin/run_test/${type}`)
-        .then(response => response.json())
-        .then(data => {
-            if (data.error) {
-                resultsContainer.textContent = 'Ошибка: ' + data.error;
-            } else {
-                resultsContainer.textContent = data.output;
-            }
-        })
-        .catch(error => {
-            resultsContainer.textContent = 'Ошибка: ' + error;
-        });
-}
-
-// Показываем первую вкладку (логи) при загрузке
-document.addEventListener('DOMContentLoaded', function() {
-    document.getElementById('logs').style.display = 'block';
-    refreshLogs();
+    } catch (error) {
+        alert('Ошибка при сохранении настроек: ' + error);
+    }
 });
+
+// Код для запуска тестов
+async function runTests(testType) {
+    const resultDiv = document.getElementById('testResults');
+    resultDiv.textContent = 'Запуск тестов...';
+    
+    try {
+        const response = await fetch(`/admin/run_test/${testType}`);
+        const data = await response.json();
+        resultDiv.textContent = data.output || data.error;
+    } catch (error) {
+        resultDiv.textContent = 'Ошибка при запуске тестов: ' + error;
+    }
+}
+
+// Код для получения логов
+async function getLogs() {
+    const lines = document.getElementById('logLines').value;
+    const logContent = document.getElementById('logContent');
+    
+    try {
+        const response = await fetch(`/admin/logs?lines=${lines}`);
+        const data = await response.json();
+        logContent.textContent = data.logs;
+    } catch (error) {
+        logContent.textContent = 'Ошибка при получении логов: ' + error;
+    }
+}
 </script>
 {% endblock %} 

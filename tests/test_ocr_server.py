@@ -5,7 +5,7 @@ from app.main import app
 from repository.repository import repository
 
 # Файлы отправляем берутся из path и отправляются на url
-url = 'http://127.0.0.1:8000/upload/'
+url = 'http://127.0.0.1:8000/OCR/upload/'
 path = Path("tests/tests_data")
 
 # Тестовые данные для проверки работы Tessaract
@@ -26,7 +26,7 @@ def send_file(file_path: Path) -> dict:
         with open(file_path, 'rb') as file:
             files = {'file': (file_path.name, file, 'multipart/form-data')}
             data = {'lang': 'rus+eng'}
-            response = client.post("/upload/", files=files, data=data)
+            response = client.post("/OCR/upload/", files=files, data=data)
             return response.json() if response.status_code == 200 else None
     except Exception as e:
         print(f"Ошибка при отправке файла {file_path}: {str(e)}")

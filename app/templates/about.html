@@ -61,22 +61,67 @@
     <div class="card mb-4">
         <div class="card-body">
             <h3>API Endpoints</h3>
-            <h4>OCR</h4>
+            
+            <h4>1. OCR</h4>
             <ul>
+                <li><code>GET /OCR/get_languages/</code> - Получение списка поддерживаемых языков</li>
                 <li><code>POST /OCR/upload/</code> - Загрузка и распознавание файла</li>
-                <li><code>GET /OCR/get_languages/</code> - Получение списка языков</li>
             </ul>
+            <h5>Примеры:</h5>
+            <div class="bg-light p-3 mb-3" style="border-radius: 5px;">
+                <pre><code># Получение списка языков
+curl http://localhost:8000/OCR/get_languages/
+
+# Загрузка и распознавание файла
+curl -X POST http://localhost:8000/OCR/upload/ -F "file=@path/to/image.png" -F "lang=rus+eng"</code></pre>
+            </div>
             
-            <h4>Записи</h4>
+            <h4>2. Records (Записи)</h4>
             <ul>
-                <li><code>GET /records/search</code> - Поиск записей</li>
-                <li><code>POST /records/delete</code> - Удаление записей</li>
+                <li><code>GET /records/</code> - HTML страница поиска записей</li>
+                <li><code>GET /records/search</code> - API для поиска записей</li>
+                <li><code>POST /records/delete</code> - API для удаления записей</li>
             </ul>
+            <h5>Примеры:</h5>
+            <div class="bg-light p-3 mb-3" style="border-radius: 5px;">
+                <pre><code># Получение всех записей
+curl http://localhost:8000/records/search
+
+# Поиск по параметрам
+curl "http://localhost:8000/records/search?keyword=текст&filename=image&date_from=2024-03-01"
+
+# Удаление записей
+curl -X POST http://localhost:8000/records/delete -H "Content-Type: application/json" -d "{\"record_ids\": [1, 2, 3]}"</code></pre>
+            </div>
             
-            <h4>Email</h4>
+            <h4>3. Email</h4>
             <ul>
                 <li><code>POST /notifier/send_email/</code> - Отправка текста на email</li>
             </ul>
+            <h5>Примеры:</h5>
+            <div class="bg-light p-3 mb-3" style="border-radius: 5px;">
+                <pre><code># Отправка текста на email
+curl -X POST http://localhost:8000/notifier/send_email/ -H "Content-Type: application/json" -d "{\"to_email\": \"user@example.com\", \"text\": \"текст\"}"</code></pre>
+            </div>
+
+            <h4>4. Admin</h4>
+            <ul>
+                <li><code>GET /admin/</code> - Панель администрирования</li>
+                <li><code>GET /admin/logs</code> - Получение логов системы</li>
+                <li><code>GET /admin/run_test/{test_type}</code> - Запуск тестов</li>
+                <li><code>POST /admin/email_config</code> - Настройка SMTP</li>
+            </ul>
+            <h5>Примеры:</h5>
+            <div class="bg-light p-3" style="border-radius: 5px;">
+                <pre><code># Получение логов
+curl http://localhost:8000/admin/logs?lines=50
+
+# Запуск тестов
+curl http://localhost:8000/admin/run_test/all
+
+# Настройка SMTP
+curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d "{\"smtp_server\": \"smtp.gmail.com\", \"smtp_port\": 465, \"smtp_user\": \"user@gmail.com\", \"smtp_password\": \"password\", \"from_email\": \"user@gmail.com\"}"</code></pre>
+            </div>
         </div>
     </div>
 

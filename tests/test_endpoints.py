@@ -15,7 +15,7 @@ def test_admin_endpoint():
 
 def test_ocr_endpoint():
     """Тест страницы OCR"""
-    response = client.get("/OCR/")
+    response = client.get("/")  # Теперь OCR на главной странице
     assert response.status_code == 200
 
 def test_get_records():

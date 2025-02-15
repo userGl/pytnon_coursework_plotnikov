@@ -3,7 +3,7 @@
 {% block content %}
 <h2>Поиск в результатах распознавания</h2>
 
-<form action="/search" method="get">
+<form action="/records/" method="get">
     <div style="display: flex; justify-content: space-between; align-items: start;">
         <div class="search-form">
             <!-- Поиск по ключевому слову -->
@@ -12,11 +12,11 @@
             <br><br>
 
             <!-- Поиск по имени файла -->
-            <label for="filename">Имя файла (содержит):</label>
+            <label for="filename">Имя файла:</label>
             <input type="text" id="filename" name="filename" value="{{ filename or '' }}" />
             <br><br>
 
-            <!-- Поиск по диапазону дат -->
+            <!-- Поиск по дате -->
             <label for="date_from">Дата от:</label>
             <input type="date" id="date_from" name="date_from" value="{{ date_from or '' }}" />
             
@@ -24,8 +24,8 @@
             <input type="date" id="date_to" name="date_to" value="{{ date_to or '' }}" />
             <br><br>
 
-            <button type="submit">Найти</button>
-            <a href="/search" class="button" style="text-decoration: none; padding: 1px 6px; border: 1px solid #ccc; display: inline-block; margin-left: 10px;">Сбросить</a>
+            <button type="submit">Поиск</button>
+            <a href="/records/" class="button" style="text-decoration: none; padding: 1px 6px; border: 1px solid #ccc; display: inline-block; margin-left: 10px;">Сбросить</a>
         </div>
 
         <div class="instructions" style="margin-left: 40px; padding: 10px; background-color: #f8f9fa; border-radius: 5px;">
@@ -75,7 +75,7 @@
         </tr>
         {% for item in data %}
         <tr>
-            <td><input type="checkbox" class="record-checkbox" data-id="{{ item.id }}"></td>
+            <td><input type="checkbox" class="record-checkbox" value="{{ item.id }}"></td>
             <td>{{ item.id }}</td>
             <td>{{ item.date_time }}</td>
             <td>
@@ -124,46 +124,44 @@
         });
     });
 
-    function deleteSelected() {
-        const checkboxes = document.getElementsByClassName('record-checkbox');
-        const selectedIds = [];
+    async function deleteSelected() {
+        // Получаем все выбранные чекбоксы
+        const checkboxes = document.querySelectorAll('input[type="checkbox"]:checked');
+        const recordIds = Array.from(checkboxes).map(cb => parseInt(cb.value));
         
-        for (let checkbox of checkboxes) {
-            if (checkbox.checked) {
-                selectedIds.push(parseInt(checkbox.dataset.id));
-            }
-        }
-
-        if (selectedIds.length === 0) {
+        if (recordIds.length === 0) {
             alert('Выберите записи для удаления');
             return;
         }
-
-        const recordCount = selectedIds.length;
-        if (!confirm(`Вы уверены, что хотите удалить ${recordCount} ${getFilesWord(recordCount)}?`)) {
+        
+        // Формируем сообщение с правильным склонением
+        const recordCount = recordIds.length;
+        const recordWord = recordCount === 1 ? 'запись' : 
+                          recordCount < 5 ? 'записи' : 'записей';
+        
+        if (!confirm(`Вы уверены, что хотите удалить ${recordCount} ${recordWord}?`)) {
             return;
         }
 
-        fetch('/delete_records', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-                record_ids: selectedIds
-            })
-        })
-        .then(response => {
+        try {
+            const response = await fetch('/records/delete', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ record_ids: recordIds })
+            });
+
             if (response.ok) {
-                location.reload();
+                // Перезагружаем страницу после успешного удаления
+                window.location.reload();
             } else {
-                alert('Ошибка при удалении записей');
+                const error = await response.json();
+                alert('Ошибка при удалении: ' + error.error);
             }
-        })
-        .catch(error => {
-            console.error('Ошибка:', error);
-            alert('Произошла ошибка при удалении записей');
-        });
+        } catch (error) {
+            alert('Ошибка при удалении: ' + error);
+        }
     }
 
     // Функция для правильного склонения слова "файл"
