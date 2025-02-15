@@ -183,36 +183,59 @@ async def search_records(
     date_to: Optional[str] = None
 ):
     """API endpoint для поиска записей"""
-    # Преобразуем строковые даты в datetime объекты
-    date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
-    date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
-    
-    # Если есть параметры поиска, выполняем поиск
-    if any([keyword, filename, date_from, date_to]):
-        data = repository.search_documents(
-            keyword=keyword,
-            filename=filename,
-            date_from=date_from_obj,
-            date_to=date_to_obj
-        )
-    else:
-        # Если параметров нет - возвращаем все записи
-        data = repository.get_all()
-    
-    # Проверяем существование файлов
-    for item in data:
-        if item['file_name'].startswith('repository/files/'):
-            item['file_exists'] = Path(item['file_name']).exists()
+    try:
+        # Добавляем логирование для отладки
+        logger.info(f"Поиск записей: keyword={keyword}, filename={filename}, date_from={date_from}, date_to={date_to}")
+        
+        # Преобразуем строковые даты в datetime объекты
+        date_from_obj = datetime.strptime(date_from, '%Y-%m-%d') if date_from else None
+        date_to_obj = datetime.strptime(date_to, '%Y-%m-%d') if date_to else None
+        
+        # Если есть параметры поиска, выполняем поиск
+        if any([keyword, filename, date_from, date_to]):
+            data = repository.search_documents(
+                keyword=keyword,
+                filename=filename,
+                date_from=date_from_obj,
+                date_to=date_to_obj
+            )
+        else:
+            # Если параметров нет - возвращаем все записи
+            data = repository.get_all()
+        
+        # Логируем результаты
+        logger.info(f"Найдено записей: {len(data)}")
+        
+        # Проверяем существование файлов
+        for item in data:
+            if item['file_name'].startswith('repository/files/'):
+                item['file_exists'] = Path(item['file_name']).exists()
 
-    return data
+        return data
+    except Exception as e:
+        logger.error(f"Ошибка при поиске записей: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 @app.post("/records/delete")
 async def delete_records(record_ids: List[int] = Body(..., embed=True)):
     """API endpoint для удаления записей"""
     try:
         logger.info(f"Запрос на удаление записей: {record_ids}")
+        not_found = []
+        
         for record_id in record_ids:
-            repository.delete_by_id(record_id)
+            if not repository.delete_by_id(record_id):
+                not_found.append(record_id)
+        
+        if not_found:
+            return JSONResponse(
+                status_code=404,
+                content={"error": f"Записи не найдены: {not_found}"}
+            )
+            
         logger.info(f"Успешно удалено записей: {len(record_ids)}")
         return {"status": "success"}
     except Exception as e:

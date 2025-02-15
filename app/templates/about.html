@@ -87,11 +87,18 @@ curl -X POST http://localhost:8000/OCR/upload/ -F "file=@path/to/image.png" -F "
                 <pre><code># Получение всех записей
 curl http://localhost:8000/records/search
 
-# Поиск по параметрам
-curl "http://localhost:8000/records/search?keyword=текст&filename=image&date_from=2024-03-01"
+# Поиск по тексту (с URL-кодированием для русских букв)
+curl -G "http://localhost:8000/records/search" --data-urlencode "keyword=тест"
 
-# Удаление записей
-curl -X POST http://localhost:8000/records/delete -H "Content-Type: application/json" -d "{\"record_ids\": [1, 2, 3]}"</code></pre>
+# Поиск по имени файла (ASCII символы)
+curl "http://localhost:8000/records/search?filename=ok"
+
+# Поиск по дате (ASCII символы)
+curl "http://localhost:8000/records/search?date_from=2025-02-15"
+
+# Комбинированный поиск (URL-кодирование только для русского текста)
+curl -G "http://localhost:8000/records/search" --data-urlencode "keyword=тест" \
+  --data "filename=ok" --data "date_from=2025-02-15"</code></pre>
             </div>
             
             <h4>3. Email</h4>

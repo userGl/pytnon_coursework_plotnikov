@@ -59,26 +59,11 @@ class Repository(ABC):
         pass
 
     @abstractmethod
-    def get_by_status(self, status: bool) -> List[Dict[str, Any]]:
-        """Получить записи по статусу"""
-        pass
-
-    @abstractmethod
-    def get_by_date(self, date: datetime) -> List[Dict[str, Any]]:
-        """Получить записи по дате"""
-        pass
-
-    @abstractmethod
     def search_documents(self, keyword: Optional[str] = None, 
                         filename: Optional[str] = None,
                         date_from: Optional[datetime] = None,
                         date_to: Optional[datetime] = None) -> List[Dict[str, Any]]:
         """Поиск документов по различным критериям"""
-        pass
-
-    @abstractmethod
-    def delete_by_filename(self, file_name: str) -> bool:
-        """Удаляет записи по имени файла и соответствующий файл"""
         pass
 
     @abstractmethod
@@ -92,7 +77,7 @@ class Repository(ABC):
         pass
 
     @abstractmethod
-    def delete_by_id(self, record_id: int):
+    def delete_by_id(self, record_id: int) -> bool:
         """Удаление записи по ID"""
         pass
 
@@ -136,7 +121,7 @@ class SQLAlchemyRepository(Repository):
                 session.add(new_ocr_data)
                 return True
         except Exception as e:
-            print(f"Ошибка при добавлении данных: {e}")
+            logger.error(f"Ошибка при добавлении данных: {e}")
             return False
 
     def get_all(self) -> List[Dict[str, Any]]:
@@ -147,29 +132,7 @@ class SQLAlchemyRepository(Repository):
                         .order_by(OcrData.date_time.desc())  # Сортировка по убыванию даты
                         .all()]
         except Exception as e:
-            print(f"Ошибка при получении данных: {e}")
-            return []
-
-    def get_by_status(self, status: bool) -> List[Dict[str, Any]]:
-        try:
-            with self._get_session() as session:
-                return [record.to_dict() 
-                        for record in session.query(OcrData)
-                        .filter(OcrData.status == str(status)).all()]
-        except Exception as e:
-            print(f"Ошибка при получении данных по статусу: {e}")
-            return []
-
-    def get_by_date(self, date: datetime) -> List[Dict[str, Any]]:
-        try:
-            with self._get_session() as session:
-                return [record.to_dict() 
-                        for record in session.query(OcrData)
-                        .filter(OcrData.date_time >= date.replace(hour=0, minute=0, second=0),
-                               OcrData.date_time < date.replace(hour=23, minute=59, second=59))
-                        .all()]
-        except Exception as e:
-            print(f"Ошибка при получении данных по дате: {e}")
+            logger.error(f"Ошибка при получении данных: {e}")
             return []
 
     def search_documents(self, keyword: Optional[str] = None, 
@@ -181,10 +144,11 @@ class SQLAlchemyRepository(Repository):
                 query = session.query(OcrData)
                 
                 if keyword:
+                    # Добавляем поиск для русского и английского текста
                     search_conditions = [
-                        OcrData.ocr_txt.ilike(f'%{keyword.lower()}%'),
-                        OcrData.ocr_txt.ilike(f'%{keyword.upper()}%'),
-                        OcrData.ocr_txt.ilike(f'%{keyword.capitalize()}%')
+                        OcrData.ocr_txt.ilike(f'%{keyword}%'),  # Точное совпадение
+                        OcrData.ocr_txt.ilike(f'%{keyword.lower()}%'),  # Нижний регистр
+                        OcrData.ocr_txt.ilike(f'%{keyword.upper()}%'),  # Верхний регистр
                     ]
                     query = query.filter(or_(*search_conditions))
                 
@@ -199,28 +163,11 @@ class SQLAlchemyRepository(Repository):
                 
                 return [record.to_dict() 
                         for record in query
-                        .order_by(OcrData.date_time.desc())  # Сортировка по убыванию даты
+                        .order_by(OcrData.date_time.desc())
                         .all()]
         except Exception as e:
-            print(f"Ошибка при поиске данных: {e}")
+            logger.error(f"Ошибка при поиске данных: {str(e)}")
             return []
-
-    def delete_by_filename(self, file_name: str) -> bool:
-        """Удаляет записи по имени файла и соответствующий файл"""
-        try:
-            with self._get_session() as session:
-                records = session.query(OcrData).filter(OcrData.file_name == file_name).all()
-                for record in records:
-                    # Если это распознанный файл, удаляем его из файловой системы
-                    if record.file_name.startswith('repository/files/'):
-                        file_path = Path(record.file_name)
-                        if file_path.exists():
-                            file_path.unlink()  # Удаляем файл
-                    session.delete(record)  # Удаляем запись из БД
-                return True
-        except Exception as e:
-            print(f"Ошибка при удалении данных: {e}")
-            return False
 
     def save_email_settings(self, config: dict) -> bool:
         """Сохраняет настройки email"""
@@ -234,7 +181,7 @@ class SQLAlchemyRepository(Repository):
                 session.add(settings)
                 return True
         except Exception as e:
-            print(f"Ошибка при сохранении настроек email: {e}")
+            logger.error(f"Ошибка при сохранении настроек email: {e}")
             return False
 
     def get_email_settings(self) -> Optional[dict]:
@@ -252,10 +199,10 @@ class SQLAlchemyRepository(Repository):
                     }
                 return None
         except Exception as e:
-            print(f"Ошибка при получении настроек email: {e}")
+            logger.error(f"Ошибка при получении настроек email: {e}")
             return None
 
-    def delete_by_id(self, record_id: int):
+    def delete_by_id(self, record_id: int) -> bool:
         """Удаление записи по ID"""
         try:
             with self._get_session() as session:
@@ -272,7 +219,7 @@ class SQLAlchemyRepository(Repository):
                     return True
                 return False
         except Exception as e:
-            print(f"Ошибка при удалении записи {record_id}: {str(e)}")
+            logger.error(f"Ошибка при удалении записи {record_id}: {str(e)}")
             return False
 
     def get_by_id(self, record_id: int) -> Optional[dict]:
@@ -282,7 +229,7 @@ class SQLAlchemyRepository(Repository):
                 record = session.query(OcrData).filter(OcrData.id == record_id).first()
                 return record.to_dict() if record else None
         except Exception as e:
-            print(f"Ошибка при получении записи {record_id}: {str(e)}")
+            logger.error(f"Ошибка при получении записи {record_id}: {str(e)}")
             return None
 
 # Создаем единственный экземпляр репозитория
