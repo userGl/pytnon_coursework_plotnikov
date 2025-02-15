@@ -8,25 +8,21 @@ def test_add_record():
     test_file = "test_file.txt"
     test_text = "Test text"
     
-    assert repository.add(test_file, test_text, True)
+    # Добавляем запись и получаем её id
+    record_id = repository.add(test_file, test_text, True)
+    assert record_id is not None, "Запись не была создана"
     
-    # Получаем все записи
+    # Получаем все записи и проверяем наличие нашей записи
     records = repository.get_all()
-    
-    # Проверяем что запись добавлена
-    found = False
-    record_id = None
-    for record in records:
-        if record["file_name"] == test_file and record["ocr_txt"] == test_text:
-            found = True
-            record_id = record["id"]
-            break
+    found = any(r["id"] == record_id and 
+               r["file_name"] == test_file and 
+               r["ocr_txt"] == test_text 
+               for r in records)
     
     assert found, "Тестовая запись не найдена"
     
     # Очищаем тестовую запись
-    if record_id:
-        repository.delete_by_id(record_id)
+    repository.delete_by_id(record_id)
 
 def test_delete_record():
     """Тест удаления записи"""

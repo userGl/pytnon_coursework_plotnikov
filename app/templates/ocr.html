@@ -67,6 +67,41 @@
         document.getElementById('selectedFileName').textContent = fileName;
     });
 
+    // Вызываем загрузку языков при загрузке страницы
+    window.onload = function() {
+        loadLanguages();
+    };
+
+    // Функция для сортировки языков (rus первый)
+    function sortLanguages(languages) {
+        // Преобразуем в массив значений
+        const languagesArray = Object.values(languages);
+        
+        if (languagesArray.includes('rus')) {
+            return ['rus', ...languagesArray.filter(lang => lang !== 'rus')];
+        }
+        return languagesArray;
+    }
+
+    // Загрузка списка языков
+    async function loadLanguages() {
+        try {
+            const response = await fetch('/OCR/get_languages/');
+            const languages = await response.json();
+            const sortedLanguages = sortLanguages(languages);
+            const select = document.getElementById('language');
+            
+            sortedLanguages.forEach(lang => {
+                const option = document.createElement('option');
+                option.value = lang;
+                option.text = lang;
+                select.appendChild(option);
+            });
+        } catch (error) {
+            console.error('Ошибка при загрузке языков:', error);
+        }
+    }
+
     // Загружаем список доступных языков
     let availableLanguages = {};
 
@@ -91,25 +126,23 @@
         select.className = 'language-select';
         select.dataset.index = index;
 
+        // Определяем порядок языков в зависимости от индекса
+        let languageEntries = Object.entries(availableLanguages);
+        if (index === 0 && languageEntries.some(([code]) => code === 'rus')) {
+            // Для первого селекта ставим rus первым
+            languageEntries = [
+                ['rus', 'rus'],
+                ...languageEntries.filter(([code]) => code !== 'rus')
+            ];
+        }
+
         // Добавляем опции языков
-        for (const [code, name] of Object.entries(availableLanguages)) {
+        for (const [code, name] of languageEntries) {
             const option = document.createElement('option');
             option.value = code;
             option.textContent = code;
             select.appendChild(option);
         }
-
-        const upButton = document.createElement('button');
-        upButton.textContent = '↑';
-        upButton.type = 'button';
-        upButton.style.padding = '0 5px';
-        upButton.onclick = () => moveLanguage(index, 'up');
-
-        const downButton = document.createElement('button');
-        downButton.textContent = '↓';
-        downButton.type = 'button';
-        downButton.style.padding = '0 5px';
-        downButton.onclick = () => moveLanguage(index, 'down');
 
         const addButton = document.createElement('button');
         addButton.textContent = '+';
@@ -124,37 +157,15 @@
         removeButton.onclick = () => removeLanguage(container);
 
         container.appendChild(select);
-        container.appendChild(upButton);
-        container.appendChild(downButton);
         container.appendChild(addButton);
         container.appendChild(removeButton);
 
         return container;
     }
 
-    function moveLanguage(index, direction) {
-        const containers = document.querySelectorAll('.language-container');
-        const currentContainer = containers[index];
-        
-        if (direction === 'up' && index > 0) {
-            currentContainer.parentNode.insertBefore(currentContainer, containers[index - 1]);
-            updateIndexes();
-        } else if (direction === 'down' && index < containers.length - 1) {
-            currentContainer.parentNode.insertBefore(containers[index + 1], currentContainer);
-            updateIndexes();
-        }
-    }
-
-    function updateIndexes() {
-        document.querySelectorAll('.language-select').forEach((select, index) => {
-            select.dataset.index = index;
-        });
-    }
-
     function removeLanguage(container) {
         if (document.querySelectorAll('.language-container').length > 1) {
             container.remove();
-            updateIndexes();
         }
     }
 

@@ -47,17 +47,17 @@ async def base(request: Request):
     text = "Нет распознаного текста"    
     return templates.TemplateResponse(request, "ocr.html", {"text": text})
 
-@app.post("/OCR/upload/")         # Загрузка и распознавание
-async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
-    """Загружает файл и возвращает информацию о нем."""
-    logger.info(f"Получен файл: {file.filename}, язык: {lang}")
-    
-    content = await file.read()
-    current_datetime = datetime.now()
-    date_time1 = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
-    temp_file_path = f"app/temp/{date_time1}_{file.filename}"
-    
+@app.post("/OCR/upload/")
+async def upload_file(file: UploadFile, lang: str = Form(...)):
+    """API endpoint для загрузки и OCR файла"""
     try:
+        logger.info(f"Получен файл: {file.filename}, язык: {lang}")
+        
+        content = await file.read()
+        current_datetime = datetime.now()
+        date_time1 = current_datetime.strftime("%Y-%m-%d_%H-%M-%S")
+        temp_file_path = f"app/temp/{date_time1}_{file.filename}"
+        
         with open(temp_file_path, "wb") as f:
             f.write(content)          
         
@@ -67,17 +67,34 @@ async def upload_file(file: UploadFile = File(...), lang: str = Form(...)):
         if result["status"] == False:
             logger.warning(f"Ошибка распознавания файла {file.filename}: {result['text']}")
             os.remove(temp_file_path)
+            # При ошибке просто возвращаем результат без сохранения в БД
+            return {
+                "status": result["status"],
+                "text": result["text"]
+            }
         else:
             logger.info(f"Успешное распознавание файла {file.filename}")
             repo_file_path = f"repository/files/{date_time1}_{file.filename}"
             shutil.move(temp_file_path, repo_file_path)
-            repository.add(repo_file_path, result["text"], True)
-        
-        return result
+            # Сохраняем в БД только успешные результаты
+            record_id = repository.add(
+                file_name=repo_file_path,
+                ocr_txt=result["text"],
+                status=result["status"]
+            )
+            
+            return {
+                "status": result["status"],
+                "text": result["text"],
+                "id": record_id
+            }
         
     except Exception as e:
-        logger.error(f"Ошибка при обработке файла {file.filename}: {str(e)}")
-        raise
+        logger.error(f"Ошибка при обработке файла: {str(e)}")
+        return JSONResponse(
+            status_code=500,
+            content={"error": str(e)}
+        )
 
 @app.get("/OCR/get_languages/")   # Получение списка языков
 async def get_languages():

@@ -27,7 +27,15 @@ def send_file(file_path: Path) -> dict:
             files = {'file': (file_path.name, file, 'multipart/form-data')}
             data = {'lang': 'rus+eng'}
             response = client.post("/OCR/upload/", files=files, data=data)
-            return response.json() if response.status_code == 200 else None
+            if response.status_code == 200:
+                result = response.json()
+                # Сохраняем id созданной записи для последующей очистки
+                if result.get('id'):  # Теперь сервер будет возвращать id
+                    record_id = result['id']
+                    # Очищаем запись после теста
+                    repository.delete_by_id(record_id)
+                return result
+            return None
     except Exception as e:
         print(f"Ошибка при отправке файла {file_path}: {str(e)}")
         return None

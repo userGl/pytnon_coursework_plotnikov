@@ -107,7 +107,8 @@ class SQLAlchemyRepository(Repository):
         finally:
             session.close()
 
-    def add(self, file_name: str, ocr_txt: str, status: bool) -> bool:
+    def add(self, file_name: str, ocr_txt: str, status: bool) -> int:
+        """Добавление новой записи"""
         try:
             with self._get_session() as session:
                 ocr_txt = str(ocr_txt).strip() if ocr_txt else ""
@@ -119,10 +120,11 @@ class SQLAlchemyRepository(Repository):
                     status=str(status)
                 )
                 session.add(new_ocr_data)
-                return True
+                session.commit()
+                return new_ocr_data.id  # Возвращаем id созданной записи
         except Exception as e:
             logger.error(f"Ошибка при добавлении данных: {e}")
-            return False
+            return None
 
     def get_all(self) -> List[Dict[str, Any]]:
         try:
