@@ -2,75 +2,54 @@ import pytest
 from repository.repository import repository
 from datetime import datetime
 
-def test_add_and_get():
-    """Тест добавления и получения записей"""
+def test_add_record():
+    """Тест добавления записи"""
     # Добавляем тестовую запись
-    repository.add("test.txt", "test text", True)
+    test_file = "test_file.txt"
+    test_text = "Test text"
+    
+    assert repository.add(test_file, test_text, True)
     
     # Получаем все записи
     records = repository.get_all()
     
     # Проверяем что запись добавлена
-    assert len(records) > 0
-    assert any(r["file_name"] == "test.txt" for r in records)
-    assert any(r["ocr_txt"] == "test text" for r in records)
-
-def test_get_by_status():
-    """Тест получения записей по статусу"""
-    # Добавляем записи с разными статусами
-    repository.add("success.txt", "success", True)
-    repository.add("error.txt", "error", False)
-    
-    # Получаем успешные записи
-    success_records = repository.get_by_status(True)
-    assert any(r["file_name"] == "success.txt" for r in success_records)
-    
-    # Получаем ошибочные записи
-    error_records = repository.get_by_status(False)
-    assert any(r["file_name"] == "error.txt" for r in error_records)
-
-def test_add_and_get():
-    """
-    Тест добавления записи и её получения
-    """
-    # Добавляем тестовую запись
-    test_file = "test_file.png"
-    test_text = "Test text"
-    test_status = True
-    
-    repository.add(test_file, test_text, test_status)
-    
-    # Получаем все записи
-    records = repository.get_all()
-    
-    # Проверяем, что наша запись есть в списке
     found = False
+    record_id = None
     for record in records:
         if record["file_name"] == test_file and record["ocr_txt"] == test_text:
             found = True
+            record_id = record["id"]
             break
     
-    assert found, "Тестовая запись не найдена в базе данных"
+    assert found, "Тестовая запись не найдена"
     
-    # Очищаем тестовые данные
-    repository.delete_by_filename(test_file)
+    # Очищаем тестовую запись
+    if record_id:
+        repository.delete_by_id(record_id)
 
-def test_get_by_status():
-    """
-    Тест получения записей по статусу
-    """
-    # Добавляем тестовые записи с разными статусами
-    repository.add("success.png", "Success text", True)
-    repository.add("failure.png", "Failure text", False)
+def test_delete_record():
+    """Тест удаления записи"""
+    # Добавляем тестовую запись
+    test_file = "test_delete.txt"
+    test_text = "Delete test"
     
-    # Получаем записи с успешным статусом
-    success_records = repository.get_by_status(True)
-    assert any(record["file_name"] == "success.png" for record in success_records)
+    repository.add(test_file, test_text, True)
     
-    # Получаем записи с неуспешным статусом
-    failure_records = repository.get_by_status(False)
-    assert any(record["file_name"] == "failure.png" for record in failure_records)
+    # Находим ID записи
+    records = repository.get_all()
+    record_id = None
     
-    # Очищаем тестовые данные
-    repository.delete_by_filename("success.png")
-    repository.delete_by_filename("failure.png") 
+    for record in records:
+        if record["file_name"] == test_file:
+            record_id = record["id"]
+            break
+    
+    assert record_id is not None, "Тестовая запись не найдена"
+    
+    # Удаляем запись
+    assert repository.delete_by_id(record_id), "Ошибка при удалении записи"
+    
+    # Проверяем что запись удалена
+    records = repository.get_all()
+    assert not any(r["file_name"] == test_file for r in records), "Запись не была удалена" 

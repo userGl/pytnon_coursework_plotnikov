@@ -37,8 +37,9 @@ def cleanup_after_tests():
     """Очистка тестовых данных после тестов"""
     yield
     # После выполнения всех тестов очищаем тестовые данные
-    for test_file in testfiles:
-        repository.delete_by_filename(test_file)
+    for record in repository.get_all():
+        if record['file_name'] in testfiles:
+            repository.delete_by_id(record['id'])
 
 @pytest.mark.parametrize("test_file, expected_result", list(zip(testfiles, results_lst)))
 def test_ocr(test_file, expected_result):
