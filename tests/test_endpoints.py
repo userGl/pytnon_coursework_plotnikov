@@ -3,9 +3,9 @@ from app.main import app
 
 client = TestClient(app)
 
-def test_root_endpoint():
-    """Тест главной страницы"""
-    response = client.get("/")
+def test_about_endpoint():
+    """Тест страницы About"""
+    response = client.get("/about/")
     assert response.status_code == 200
 
 def test_admin_endpoint():
