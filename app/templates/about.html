@@ -2,146 +2,256 @@
 
 {% block content %}
 <div class="container">
-    <h2>О проекте</h2>
-    
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3>Описание</h3>
-            <p>Микросервис для распознавания текста с изображений. Поддерживает различные языки и форматы изображений.</p>
+    <div class="card-body">
+        <div class="container mt-4">
+            <h3 class="text-center">Томский Государственный Университет</h3>
+            <h3 class="text-center mb-4" style="letter-spacing: 0.5em; font-size: 1.4em;">К У Р С О В О Й &nbsp; П Р О Е К Т</h3>
             
-            <h4>Основные функции:</h4>
-            <ul>
-                <li>Загрузка изображений в форматах PNG, JPEG, TIFF, BMP</li>
-                <li>Распознавание текста с помощью Tesseract OCR</li>
-                <li>Поддержка множества языков (русский, английский и др.)</li>
-                <li>Сохранение результатов в базе данных SQLite</li>
-                <li>Поиск по распознанным текстам</li>
-                <li>Отправка результатов на email</li>
-                <li>Административная панель с настройками и логами</li>
-            </ul>
-
-            <h4>Структура проекта:</h4>
-            <ul>
-                <li><code>app/</code> - основной код приложения
-                    <ul>
-                        <li>main.py - FastAPI приложение</li>
-                        <li>tesseract.py - работа с OCR</li>
-                        <li>templates/ - HTML шаблоны</li>
-                    </ul>
-                </li>
-                <li><code>repository/</code> - работа с базой данных
-                    <ul>
-                        <li>repository.py - CRUD операции</li>
-                        <li>files/ - хранение изображений</li>
-                    </ul>
-                </li>
-                <li><code>notifier/</code> - отправка уведомлений
-                    <ul>
-                        <li>notification_service.py - работа с SMTP</li>
-                    </ul>
-                </li>
-                <li><code>tests/</code> - модульные тесты</li>
-            </ul>
+            <div style="font-family: Arial, sans-serif;">
+                <p style="font-size: 1.1em;"><b>Предмет:</b> "Программирование на Python: углубленный курс"</p>
+                <p style="font-size: 1.1em;"><b>Тема:</b> "Микросервис для анализа текста на изображениях (OCR)"</p>
+                <p style="font-size: 1.1em;"><b>Выполнил:</b> Плотников Г.А. <a href="mailto:g_plotnikov@mail.ru">g_plotnikov@mail.ru</a></p>
+                <p style="font-size: 1.1em; text-align: right;">15.02.2025 г.</p>
+            </div>
+            <hr>
         </div>
-    </div>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3>Основные возможности</h3>
-            <ul>
-                <li>Распознавание текста (OCR) с изображений</li>
-                <li>Поддержка нескольких языков</li>
-                <li>Хранение результатов в базе данных</li>
-                <li>Поиск по распознанным текстам</li>
-                <li>Отправка результатов на email</li>
-            </ul>
-        </div>
-    </div>
+        <h2>О проекте</h2>
+        
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Описание</h3>
+                <p>Микросервис для распознавания текста с изображений. Поддерживает различные языки и форматы изображений.</p>
+                
+                <h4>Основные функции:</h4>
+                <ul>
+                    <li>Загрузка изображений в форматах PNG, JPEG, TIFF, BMP</li>
+                    <li>Распознавание текста с помощью Tesseract OCR</li>
+                    <li>Поддержка множества языков (русский, английский и др.)</li>
+                    <li>Сохранение результатов в базе данных SQLite</li>
+                    <li>Поиск по распознанным текстам</li>
+                    <li>Отправка результатов на email</li>
+                    <li>Административная панель с настройками и логами</li>
+                </ul>
 
-    <div class="card mb-4">
-        <div class="card-body">
-            <h3>API Endpoints</h3>
-            
-            <h4>1. OCR</h4>
-            <ul>
-                <li><code>GET /OCR/get_languages/</code> - Получение списка поддерживаемых языков</li>
-                <li><code>POST /OCR/upload/</code> - Загрузка и распознавание файла</li>
-            </ul>
-            <h5>Примеры:</h5>
-            <div class="bg-light p-3 mb-3" style="border-radius: 5px;">
-                <pre><code># Получение списка языков
-curl http://localhost:8000/OCR/get_languages/
-
-# Загрузка и распознавание файла
-curl -X POST http://localhost:8000/OCR/upload/ -F "file=@path/to/image.png" -F "lang=rus+eng"</code></pre>
-            </div>
-            
-            <h4>2. Records (Записи)</h4>
-            <ul>
-                <li><code>GET /records/</code> - HTML страница поиска записей</li>
-                <li><code>GET /records/search</code> - API для поиска записей</li>
-                <li><code>POST /records/delete</code> - API для удаления записей</li>
-            </ul>
-            <h5>Примеры:</h5>
-            <div class="bg-light p-3 mb-3" style="border-radius: 5px;">
-                <pre><code># Получение всех записей
-curl http://localhost:8000/records/search
-
-# Поиск по тексту (с URL-кодированием для русских букв)
-curl -G "http://localhost:8000/records/search" --data-urlencode "keyword=тест"
-
-# Поиск по имени файла (ASCII символы)
-curl "http://localhost:8000/records/search?filename=ok"
-
-# Поиск по дате (ASCII символы)
-curl "http://localhost:8000/records/search?date_from=2025-02-15"
-
-# Комбинированный поиск (URL-кодирование только для русского текста)
-curl -G "http://localhost:8000/records/search" --data-urlencode "keyword=тест" \
-  --data "filename=ok" --data "date_from=2025-02-15"</code></pre>
-            </div>
-            
-            <h4>3. Email</h4>
-            <ul>
-                <li><code>POST /notifier/send_email/</code> - Отправка текста на email</li>
-            </ul>
-            <h5>Примеры:</h5>
-            <div class="bg-light p-3 mb-3" style="border-radius: 5px;">
-                <pre><code># Отправка текста на email
-curl -X POST http://localhost:8000/notifier/send_email/ -H "Content-Type: application/json" -d "{\"to_email\": \"user@example.com\", \"text\": \"текст\"}"</code></pre>
-            </div>
-
-            <h4>4. Admin</h4>
-            <ul>
-                <li><code>GET /admin/</code> - Панель администрирования</li>
-                <li><code>GET /admin/logs</code> - Получение логов системы</li>
-                <li><code>GET /admin/run_test/{test_type}</code> - Запуск тестов</li>
-                <li><code>POST /admin/email_config</code> - Настройка SMTP</li>
-            </ul>
-            <h5>Примеры:</h5>
-            <div class="bg-light p-3" style="border-radius: 5px;">
-                <pre><code># Получение логов
-curl http://localhost:8000/admin/logs?lines=50
-
-# Запуск тестов
-curl http://localhost:8000/admin/run_test/all
-
-# Настройка SMTP
-curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d "{\"smtp_server\": \"smtp.gmail.com\", \"smtp_port\": 465, \"smtp_user\": \"user@gmail.com\", \"smtp_password\": \"password\", \"from_email\": \"user@gmail.com\"}"</code></pre>
+                <h4>Структура проекта:</h4>
+                <ul>
+                    <li><code>app/</code> - основной код приложения
+                        <ul>
+                            <li>main.py - FastAPI приложение</li>
+                            <li>tesseract.py - работа с OCR</li>
+                            <li>templates/ - HTML шаблоны</li>
+                        </ul>
+                    </li>
+                    <li><code>repository/</code> - работа с базой данных
+                        <ul>
+                            <li>repository.py - CRUD операции</li>
+                            <li>files/ - хранение изображений</li>
+                        </ul>
+                    </li>
+                    <li><code>notifier/</code> - отправка уведомлений
+                        <ul>
+                            <li>notification_service.py - работа с SMTP</li>
+                        </ul>
+                    </li>
+                    <li><code>tests/</code> - модульные тесты</li>
+                </ul>
             </div>
         </div>
-    </div>
 
-    <div class="card">
-        <div class="card-body">
-            <h3>Технологии</h3>
-            <ul>
-                <li>FastAPI - веб-фреймворк</li>
-                <li>Tesseract - движок OCR</li>
-                <li>SQLite - база данных</li>
-                <li>Bootstrap - фронтенд</li>
-                <li>Pytest - тестирование</li>
-            </ul>
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>Основные возможности</h3>
+                <ul>
+                    <li>Распознавание текста (OCR) с изображений</li>
+                    <li>Поддержка нескольких языков</li>
+                    <li>Хранение результатов в базе данных</li>
+                    <li>Поиск по распознанным текстам, именам файлов и датам</li>
+                    <li>Отправка результатов на email</li>
+                </ul>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h3>API Endpoints</h3>
+                
+                <h4>1. OCR</h4>
+                <ul style="font-family: Arial, sans-serif;">
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>GET</b> /OCR/get_languages/</code> - Получение списка поддерживаемых языков</li>
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>POST</b> /OCR/upload/</code> - Загрузка и распознавание файла</li>
+                </ul>
+                <div style="margin-left: 20px; font-family: Arial, sans-serif;">
+                    <h5 style="font-size: 0.95em;">Примеры:</h5>
+                    <div class="bg-light p-2 mb-2" style="border-radius: 5px; margin-top: -10px;">
+                        <ul style="list-style-type: disc; margin-bottom: 0;">
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Получение списка языков</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl http://localhost:8000/OCR/get_languages/</code></pre>
+                            </li>
+
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Загрузка файла на распознавание</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl -F "file=@image.png" -F "lang=rus" http://localhost:8000/OCR/upload/</code></pre>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h4>2. Records (Записи)</h4>
+                <ul style="font-family: Arial, sans-serif;">
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>GET</b> /records/</code> - HTML страница поиска записей</li>
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>GET</b> /records/search</code> - API для поиска записей</li>
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>POST</b> /records/delete</code> - API для удаления записей</li>
+                </ul>
+                <div style="margin-left: 20px; font-family: Arial, sans-serif;">
+                    <h5 style="font-size: 0.95em;">Примеры:</h5>
+                    <div class="bg-light p-2 mb-2" style="border-radius: 5px; margin-top: -10px;">
+                        <ul style="list-style-type: disc; margin-bottom: 0;">
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Получение всех записей</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl http://localhost:8000/records/search</code></pre>
+                            </li>
+
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Поиск по тексту (с URL-кодированием для русских букв)</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl -G "http://localhost:8000/records/search" --data-urlencode "keyword=тест"</code></pre>
+                            </li>
+
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Поиск по имени файла (ASCII символы)</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl "http://localhost:8000/records/search?filename=ok"</code></pre>
+                            </li>
+
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Поиск по дате (ASCII символы)</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl "http://localhost:8000/records/search?date_from=2025-02-15"</code></pre>
+                            </li>
+
+                            <div style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Примечание по поиску по датам:</b></span>
+                                <div style="margin: 5px 0 0 20px; font-size: 0.85em; font-family: inherit;">
+                                    Даты указываются в формате YYYY-MM-DD (например, 2025-02-15)<br><br>
+                                    Для поиска указывайте в date_from дату начала периода, а в date_to дату <b>следующего дня</b> после нужного периода:<br>
+                                    - За один день (15.02.2025):        date_from=2025-02-15&date_to=2025-02-16<br>
+                                    - За период (15-20.02.2025):        date_from=2025-02-15&date_to=2025-02-21
+                                </div>
+                            </div>
+
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Комбинированный поиск (URL-кодирование только для русского текста)</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl -G "http://localhost:8000/records/search" --data-urlencode "keyword=тест" --data "filename=ok" --data "date_from=2025-02-15"</code></pre>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <h4>3. Email</h4>
+                <ul style="font-family: Arial, sans-serif;">
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>POST</b> /notifier/send_email/</code> - Отправка текста на email</li>
+                </ul>
+                <div style="margin-left: 20px; font-family: Arial, sans-serif;">
+                    <h5 style="font-size: 0.95em;">Примеры:</h5>
+                    <div class="bg-light p-2 mb-2" style="border-radius: 5px; margin-top: -10px;">
+                        <ul style="list-style-type: disc; margin-bottom: 0;">
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Отправка текста на email</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl -X POST http://localhost:8000/notifier/send_email/ -H "Content-Type: application/json" -d "{\"text\": \"Текст для отправки\", \"to_email\": \"user@example.com\"}"</code></pre>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+
+                <h4>4. Admin</h4>
+                <ul style="font-family: Arial, sans-serif;">
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>GET</b> /admin/</code> - Панель администрирования</li>
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>GET</b> /admin/logs</code> - Получение логов системы</li>
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>GET</b> /admin/run_test/{test_type}</code> - Запуск тестов</li>
+                    <li style="font-size: 0.9em;"><code style="font-family: inherit;"><b>POST</b> /admin/email_config</code> - Настройка SMTP</li>
+                </ul>
+                <div style="margin-left: 20px; font-family: Arial, sans-serif;">
+                    <h5 style="font-size: 0.95em;">Примеры:</h5>
+                    <div class="bg-light p-2 mb-2" style="border-radius: 5px; margin-top: -10px;">
+                        <ul style="list-style-type: disc; margin-bottom: 0;">
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Получение логов</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl http://localhost:8000/admin/logs?lines=50</code></pre>
+                            </li>
+
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Запуск тестов</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl http://localhost:8000/admin/run_test/ocr</code></pre>
+                            </li>
+
+                            <div style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Примечание по запуску тестов:</b></span>
+                                <div style="margin: 5px 0 0 20px; font-size: 0.85em; font-family: inherit;">
+                                    Доступные опции test_type:<br>
+                                    - endpoints  - тесты доступности API endpoints:<br>
+                                        • GET / - главная страница<br>
+                                        • GET /admin/ - страница администратора<br>
+                                        • GET /records/search - поиск записей<br><br>
+                                    
+                                    - ocr        - тесты модуля распознавания текста:<br>
+                                        • test_text_ok_ru.png - распознавание русского текста<br>
+                                        • test_text_ok_en.png - распознавание английского текста<br>
+                                        • test_no_letters.png - изображение без текста<br>
+                                        • test_wrong_type.txt - неподдерживаемый формат файла<br>
+                                        • test_empy_pict.png - пустое изображение<br><br>
+                                    
+                                    - repository - тесты репозитория:<br>
+                                        • Создание новой записи в БД<br>
+                                        • Удаление записи из БД<br><br>
+                                    
+                                    - all        - запуск всех вышеперечисленных тестов
+                                </div>
+                            </div>
+
+                            <li style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Настройка SMTP</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d '{"smtp_server": "smtp.mail.ru", "smtp_port": 465}'</code></pre>
+                            </li>
+
+                            <div style="margin-bottom: 10px;">
+                                <span style="font-size: 0.8em;"><b>Примечание по настройке SMTP:</b></span>
+                                <div style="margin: 5px 0 0 20px; font-size: 0.85em; font-family: inherit;">
+                                    Параметры конфигурации:<br>
+                                    • smtp_server  - адрес SMTP сервера (например, smtp.mail.ru)<br>
+                                    • smtp_port    - порт SMTP сервера (обычно 465 для SSL или 587 для TLS)<br>
+                                    • smtp_user    - имя пользователя для авторизации на SMTP сервере<br>
+                                    • smtp_password - пароль для авторизации (для Mail.ru нужен пароль для внешнего приложения)<br>
+                                    • from_email   - email адрес отправителя<br><br>
+                                    
+                                    Пример для Mail.ru:<br>
+                                    • smtp_server: "smtp.mail.ru"<br>
+                                    • smtp_port: 465<br>
+                                    • smtp_user: "your.login@mail.ru"<br>
+                                    • smtp_password: "your-app-password"<br>
+                                    • from_email: "your.login@mail.ru"<br><br>
+                                    
+                                    Для получения пароля приложения в Mail.ru:<br>
+                                    1. Зайдите в настройки безопасности почты<br>
+                                    2. Включите доступ к почте через внешние приложения<br>
+                                    3. Создайте пароль для приложения
+                                </div>
+                            </div>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <h3>Технологии</h3>
+                <ul>
+                    <li>FastAPI - веб-фреймворк</li>
+                    <li>Tesseract - движок OCR</li>
+                    <li>SQLite - база данных</li>
+                    <li>Bootstrap - фронтенд</li>
+                    <li>Pytest - тестирование</li>
+                </ul>
+            </div>
         </div>
     </div>
 </div>
