@@ -30,7 +30,7 @@
 
 ### 1.3. Инструкции преподавателя от 11.01.2025 (требования для всех проектов):
 • **Описание в Readme (что за проект, для чего, как работает, как установить и запустить). - Выполнено**  
-• **Использование паттернов программирования. - Выполнено репозиторий**  
+• **Использование паттернов программирования. - Выполнено: repository и notifier**  
 • **Тестирование. - Выполнено**  
 • **Разделение проекта, структурирование. - Выполнено**  
 • **Валидация. - Выполнено**  
@@ -105,6 +105,7 @@ project_root/
 ├── app/                    # Основной код приложения
 │   ├── main.py            # FastAPI приложение
 │   ├── tesseract.py       # Модуль работы с OCR
+│   ├── temp/             # Временное хранилище загруженных файлов
 │   └── templates/         # HTML шаблоны
 │       ├── base.html      # Базовый шаблон
 │       ├── about.html     # Страница "О проекте"
@@ -141,27 +142,67 @@ project_root/
 └── README.md          # Документация проекта
 ```
 
-## 4. Установка программы Windows
-4.1. Работа программы проверена на Python 3.12.6 и 3.13.0. 
-4.2. Склонируйте файлы этого проекта в папку на компьютере. **Не используйте кириллицу в пути к папке.**  
-4.3. Установите виртуальное окружениеие и зависимости. Запустите командную строку в скаченной папке проекта и выполните:  
+## 4. Диаграмма компонентов
+```mermaid
+graph TD
+    subgraph Frontend
+        UI[HTML Templates]
+    end
+
+    subgraph FastAPI Application
+        API[FastAPI App]
+        Temp[Temp Storage]
+        Logger[Logger]
+        
+        subgraph Processing
+            OCR[Tesseract OCR]
+            Notifier[Email Notifier]
+        end
+    end
+
+    subgraph Data Storage
+        DB[(SQLite DB)]
+        Files[File Storage]
+    end
+
+    subgraph External Services
+        SMTP[SMTP Server]
+    end
+    
+    UI <--> API
+    API --> |save/delete| Temp
+    API --> |path| OCR
+    OCR --> |read| Temp
+    OCR --> |result| API
+    API <--> Notifier
+    API --> Logger
+    Temp --> |move| Files
+    API <--> |read/delete| Files
+    API --> DB
+    Notifier <--> SMTP
+```
+
+## 5. Установка программы Windows
+5.1. Работа программы проверена на Python 3.12.6 и 3.13.0. 
+5.2. Склонируйте файлы этого проекта в папку на компьютере. **Не используйте кириллицу в пути к папке.**  
+5.3. Установите виртуальное окружениеие и зависимости. Запустите командную строку в скаченной папке проекта и выполните:  
 • python -m venv env  
 • env\Scripts\activate  
 • pip install -r requirements.txt  
-4.4. Скачайте инсталятор "tesseract-ocr-w64-setup-5.5.0.20241111.exe" с сайта:  
+5.4. Скачайте инсталятор "tesseract-ocr-w64-setup-5.5.0.20241111.exe" с сайта:  
 https://github.com/UB-Mannheim/tesseract/wiki  
-4.5. Запустите инсталятор и в процессе установки выберите:  
+5.5. Запустите инсталятор и в процессе установки выберите:  
 • "Additional language data"(download) в меню "Компоненты устанавливаемой программы" выберите требуемые дополнительные языки (как минимум, русский) 
-•  В меню "Выбор папки установки" выберите папку "Tesseract-OCR" которая находится в папке проекта  программы (см. пункт 4.2).   
+•  В меню "Выбор папки установки" выберите папку "Tesseract-OCR" которая находится в папке проекта  программы (см. пункт 5.2).   
 
-#### 5. Запуск программы  
+## 6. Запуск программы  
 Запустите командную строку в скаченной папке проекта и выполните:  
-5.1. Активируйте витуальное окружение: Запустите командную строку в папке проекта и выполните env/Scripts/activate  
-5.2. Запустите web-сервер, в виртуальном окружении выполните: uvicorn app.main:app  
-5.3. Для работы с программой в браузере откройте http://127.0.0.1:8000 
+6.1. Активируйте витуальное окружение: Запустите командную строку в папке проекта и выполните env/Scripts/activate  
+6.2. Запустите web-сервер, в виртуальном окружении выполните: uvicorn app.main:app  
+6.3. Для работы с программой в браузере откройте http://127.0.0.1:8000 
 
-#### 6. Работа с микросервисом
-##### 6.1. OCR
+## 7. Работа с микросервисом
+##### 7.1. OCR
 • **GET** /OCR/get_languages/ - Получение списка поддерживаемых языков
 • **POST** /OCR/upload/ - Загрузка и распознавание файла
 
@@ -174,7 +215,7 @@ curl http://localhost:8000/OCR/get_languages/
 curl -F "file=@image.png" -F "lang=rus" http://localhost:8000/OCR/upload/
 ```
 
-##### 6.2. Records (Записи)
+##### 7.2. Records (Записи)
 • **GET** /records/ - HTML страница поиска записей
 • **GET** /records/search - API для поиска записей
 • **POST** /records/delete - API для удаления записей
@@ -194,7 +235,7 @@ curl "http://localhost:8000/records/search?filename=ok"
 curl "http://localhost:8000/records/search?date_to=2025-02-16"
 ```
 
-##### 6.3. Email
+##### 7.3. Email
 • **POST** /notifier/send_email/ - Отправка текста на email
 
 Пример:
@@ -203,7 +244,7 @@ curl "http://localhost:8000/records/search?date_to=2025-02-16"
 curl -X POST http://localhost:8000/notifier/send_email/ -H "Content-Type: application/json" -d '{"text": "Текст для отправки", "to_email": "user@example.com"}'
 ```
 
-##### 6.4. Логи
+##### 7.4. Логи
 • **GET** /admin/logs - Получение логов системы
 
 Пример:
@@ -212,7 +253,7 @@ curl -X POST http://localhost:8000/notifier/send_email/ -H "Content-Type: applic
 curl http://localhost:8000/admin/logs?lines=50
 ```
 
-##### 6.5. Тестирование
+##### 7.5. Тестирование
 • **GET** /admin/run_test/{test_type} - Запуск тестов
 
 Примеры:
@@ -230,7 +271,7 @@ curl http://localhost:8000/admin/run_test/repository
 curl http://localhost:8000/admin/run_test/all
 ```
 
-##### 6.6. Настройка SMTP
+##### 7.6. Настройка SMTP
 • **POST** /admin/email_config - Настройка SMTP сервера
 
 Пример:
@@ -239,10 +280,10 @@ curl http://localhost:8000/admin/run_test/all
 curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d "{\"smtp_server\": \"smtp.mail.ru\", \"smtp_port\": 465, \"smtp_user\": \"your.login@mail.ru\", \"smtp_password\": \"your-app-password\", \"from_email\": \"your.login@mail.ru\"}"
 ```
 
-#### 7. Тестирование
+## 8. Тестирование
 В проекте есть 3 группы тестов:  
 
-##### 7.1. Тесты endpoints (tests/test_endpoints.py):  
+##### 8.1. Тесты endpoints (tests/test_endpoints.py):  
 - Тесты HTML страниц:
     - GET /about/ - страница с описанием проекта  
     - GET /admin/ - страница администратора
@@ -250,12 +291,12 @@ curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: applicat
 - Тест API:
     - GET /records/search - доступность endpoint поиска записей
 
-##### 7.2. Тесты базы данных (tests/test_repository.py):  
+##### 8.2. Тесты базы данных (tests/test_repository.py):  
 - Тесты репозитория:    
     - Тест добавления записи в БД
     - Тест удаления записи из БД
 
-##### 7.3. Тесты OCR (tests/test_ocr_server.py):  
+##### 8.3. Тесты OCR (tests/test_ocr_server.py):  
 - Тесты распознавания разных типов файлов:
     - test_text_ok_ru.png: ожидается успешное распознавание русского текста
     - test_text_ok_en.png: ожидается успешное распознавание английского текста
@@ -268,7 +309,7 @@ curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: applicat
     • Сравнивается результат с ожидаемым
     • Очищаются тестовые данные из БД
 
-##### 7.4. Запуск тестов:  
+##### 8.4. Запуск тестов:  
 - Через веб-интерфейс на странице "АДМИН":  
     - По отдельности, выбрав нужный тест
     - Все вместе, нажав "Запустить все тесты"
