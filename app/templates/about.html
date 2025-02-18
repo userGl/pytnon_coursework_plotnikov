@@ -124,8 +124,8 @@
                             </li>
 
                             <li style="margin-bottom: 10px;">
-                                <span style="font-size: 0.8em;"><b>Поиск по дате (ASCII символы)</b></span>
-                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl "http://localhost:8000/records/search?date_from=2025-02-15"</code></pre>
+                                <span style="font-size: 0.8em;"><b>Поиск по дате</b></span>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl "http://localhost:8000/records/search?date_to=2025-02-16"</code></pre>
                             </li>
 
                             <div style="margin-bottom: 10px;">
@@ -210,7 +210,7 @@
 
                             <li style="margin-bottom: 10px;">
                                 <span style="font-size: 0.8em;"><b>Настройка SMTP</b></span>
-                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d '{"smtp_server": "smtp.mail.ru", "smtp_port": 465}'</code></pre>
+                                <pre style="margin: 5px 0 0 20px;"><code style="font-family: inherit;">  curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d "{\"smtp_server\": \"smtp.mail.ru\", \"smtp_port\": 465, \"smtp_user\": \"your.login@mail.ru\", \"smtp_password\": \"your-app-password\", \"from_email\": \"your.login@mail.ru\"}"</code></pre>
                             </li>
 
                             <div style="margin-bottom: 10px;">
@@ -222,6 +222,10 @@
                                     • smtp_user    - имя пользователя для авторизации на SMTP сервере<br>
                                     • smtp_password - пароль для авторизации (для Mail.ru нужен пароль для внешнего приложения)<br>
                                     • from_email   - email адрес отправителя<br><br>
+                                    
+                                    Пример настройки через API:<br>
+                                    <pre style="margin: 5px 0;">curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d "{\"smtp_server\": \"smtp.mail.ru\", \"smtp_port\": 465, \"smtp_user\": \"your.login@mail.ru\", \"smtp_password\": \"your-app-password\", \"from_email\": \"your.login@mail.ru\"}"</pre>
+                                    <br>
                                     
                                     Пример для Mail.ru:<br>
                                     • smtp_server: "smtp.mail.ru"<br>
