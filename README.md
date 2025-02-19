@@ -1,5 +1,12 @@
-## "Микросервис для анализа текста на изображениях (OCR)"
-### Курсовая работа студента ТГУ Плотникова Г.А. по предмету "Программирование на Python: углубленный курс"
+# Томский Государственный Университет
+# КУРСОВОЙ ПРОЕКТ
+
+**Предмет:** "Программирование на Python: углубленный курс"  
+**Тема:** "Микросервис для анализа текста на изображениях (OCR)"  
+**Выполнил:** Плотников Г.А. (g_plotnikov@mail.ru)  
+**Дата:** 15.02.2025 г.
+
+---
 
 ## 1. Обязательная часть:  
 ### 1.1. Этапы работа над проектом (общие для всех проектов).  
@@ -44,11 +51,11 @@
 
 Например, для распознавания тектса документа на русском языке пользользователь должен вполнить следующие действия:   
 1.4.1. Авторизоваться/открыть сервис.  
-1.4.2. Перейти на страницу загрузки документа для распознавания текста.  
-1.4.3. Загрузить документ с изображения в формате jpg.  
-1.4.4. Сервис сохраняет загруженный документ в директорию "temp".  
-1.4.5. Сервис выполняет проверку документа на корректность и в случае успеха запускает процесс распознавания текста.  
-1.4.6. В результате обработки документа пользователь получает на почту тестовый документ в формате ".docx" в котором находится распознанный текст загруженного документа.  
+1.4.2. Перейти на страницу загрузки документа для распознавания текста.
+1.4.3. Загрузить документ с изображения в формате jpg.
+1.4.4. Сервис сохраняет загруженный документ в директорию "temp".
+1.4.5. Сервис выполняет проверку документа на корректность и в случае успеха запускает процесс распознавания текста.
+1.4.6. В результате обработки документа пользователь получает на почту тестовый документ в формате ".docx" в котором находится распознанный текст загруженного документа.
 1.4.7. Рекомендую добавить систему логирования чтоб администратор мог просматривать в виде таблицы статистику использования сервиса. Например, названия загруженных документов, размер документа, дату и время загрузки, время обработки документа, имя клиента и почту на которую был выслан результат."  
 
 ## 2. План работы ПО. Составлен исходя из анализа пунктов 1.1 - 1.4
@@ -182,7 +189,80 @@ graph TD
     Notifier <--> SMTP
 ```
 
-## 5. Установка программы Windows
+## 5. Диаграмма последовательностей
+```mermaid
+sequenceDiagram
+    actor User
+    actor Admin
+    participant Frontend
+    participant FastAPI
+    participant OCR
+    participant Repository
+    participant Notifier
+    participant SMTP
+    participant Logger
+
+    %% Настройка SMTP администратором
+    Admin->>Frontend: Открыть админ-панель
+    Frontend->>FastAPI: GET /admin/
+    FastAPI->>Repository: Получить текущие настройки
+    Repository-->>FastAPI: Конфигурация SMTP
+    FastAPI-->>Frontend: Отображение формы
+    Frontend-->>Admin: Форма настройки SMTP
+    Admin->>Frontend: Ввод настроек SMTP
+    Frontend->>FastAPI: POST /admin/email_config
+    FastAPI->>Repository: Сохранить настройки
+    Repository-->>FastAPI: Статус сохранения
+    FastAPI-->>Frontend: Статус операции (success/error)
+    Frontend-->>Admin: Уведомление о результате
+
+    %% Просмотр логов администратором
+    Admin->>Frontend: Запрос логов
+    Frontend->>FastAPI: GET /admin/logs
+    FastAPI->>Logger: Чтение лог-файла
+    Logger-->>FastAPI: Последние записи
+    FastAPI-->>Frontend: Логи системы
+    Frontend-->>Admin: Отображение логов
+
+    %% Запуск тестов администратором
+    Admin->>Frontend: Запуск тестов
+    Frontend->>FastAPI: GET /admin/run_test/{type}
+    FastAPI->>FastAPI: Выполнение тестов
+    FastAPI-->>Frontend: Результаты тестов
+    Frontend-->>Admin: Отображение результатов
+
+    %% Распознавание текста пользователем
+    User->>Frontend: Загрузка изображения
+    Frontend->>FastAPI: POST /OCR/upload/
+    FastAPI->>OCR: Распознать текст
+    OCR-->>FastAPI: Результат OCR
+    FastAPI->>Repository: Сохранить результат
+    Repository-->>FastAPI: ID записи
+    FastAPI-->>Frontend: Результат + ID
+    Frontend-->>User: Отображение текста
+
+    %% Поиск пользователем
+    User->>Frontend: Поиск по параметрам
+    Frontend->>FastAPI: GET /records/search
+    FastAPI->>Repository: Поиск записей
+    Repository-->>FastAPI: Результаты
+    FastAPI-->>Frontend: Список записей
+    Frontend-->>User: Отображение результатов
+
+    %% Отправка уведомления пользователем
+    User->>Frontend: Отправить на email
+    Frontend->>FastAPI: POST /notifier/send_email/
+    FastAPI->>Repository: Получить настройки SMTP
+    Repository-->>FastAPI: Конфигурация
+    FastAPI->>Notifier: Отправить уведомление
+    Notifier->>SMTP: Отправка письма
+    SMTP-->>Notifier: Статус отправки
+    Notifier-->>FastAPI: Результат
+    FastAPI-->>Frontend: Статус операции
+    Frontend-->>User: Уведомление
+```
+
+## 6. Установка программы Windows
 5.1. Работа программы проверена на Python 3.12.6 и 3.13.0. 
 5.2. Склонируйте файлы этого проекта в папку на компьютере. **Не используйте кириллицу в пути к папке.**  
 5.3. Установите виртуальное окружениеие и зависимости. Запустите командную строку в скаченной папке проекта и выполните:  
@@ -195,14 +275,32 @@ https://github.com/UB-Mannheim/tesseract/wiki
 • "Additional language data"(download) в меню "Компоненты устанавливаемой программы" выберите требуемые дополнительные языки (как минимум, русский) 
 •  В меню "Выбор папки установки" выберите папку "Tesseract-OCR" которая находится в папке проекта  программы (см. пункт 5.2).   
 
-## 6. Запуск программы  
+## 7. Запуск программы  
 Запустите командную строку в скаченной папке проекта и выполните:  
 6.1. Активируйте витуальное окружение: Запустите командную строку в папке проекта и выполните env/Scripts/activate  
 6.2. Запустите web-сервер, в виртуальном окружении выполните: uvicorn app.main:app  
 6.3. Для работы с программой в браузере откройте http://127.0.0.1:8000 
+6.4. Инструкции пользователю находятся на страницах "OCR" и "ПОИСК". На странице "О Проекте" есть примеры работы с API.
 
-## 7. Работа с микросервисом
-##### 7.1. OCR
+## 8. Паттерны программирования
+В проекте используются следующие паттерны проектирования:
+
+##### 8.1. Repository Pattern (repository/repository.py)
+Абстрагирует работу с базой данных и предоставляет единый интерфейс для CRUD операций:
+- add() - добавление новой записи
+- get_all() - получение всех записей
+- search_documents() - поиск по параметрам
+- delete_by_id() - удаление записи
+- save_email_settings() - сохранение настроек SMTP
+- get_email_settings() - получение настроек SMTP
+
+##### 8.2. Notifier Pattern (notifier/notification_service.py)
+Абстракция для отправки уведомлений:
+- configure_email() - настройка параметров SMTP
+- notify_all() - отправка уведомления
+
+## 9. Работа с микросервисом
+##### 9.1. OCR
 • **GET** /OCR/get_languages/ - Получение списка поддерживаемых языков
 • **POST** /OCR/upload/ - Загрузка и распознавание файла
 
@@ -215,7 +313,7 @@ curl http://localhost:8000/OCR/get_languages/
 curl -F "file=@image.png" -F "lang=rus" http://localhost:8000/OCR/upload/
 ```
 
-##### 7.2. Records (Записи)
+##### 9.2. Records (Записи)
 • **GET** /records/ - HTML страница поиска записей
 • **GET** /records/search - API для поиска записей
 • **POST** /records/delete - API для удаления записей
@@ -235,7 +333,7 @@ curl "http://localhost:8000/records/search?filename=ok"
 curl "http://localhost:8000/records/search?date_to=2025-02-16"
 ```
 
-##### 7.3. Email
+##### 9.3. Email
 • **POST** /notifier/send_email/ - Отправка текста на email
 
 Пример:
@@ -244,7 +342,7 @@ curl "http://localhost:8000/records/search?date_to=2025-02-16"
 curl -X POST http://localhost:8000/notifier/send_email/ -H "Content-Type: application/json" -d '{"text": "Текст для отправки", "to_email": "user@example.com"}'
 ```
 
-##### 7.4. Логи
+##### 9.4. Логи
 • **GET** /admin/logs - Получение логов системы
 
 Пример:
@@ -253,7 +351,7 @@ curl -X POST http://localhost:8000/notifier/send_email/ -H "Content-Type: applic
 curl http://localhost:8000/admin/logs?lines=50
 ```
 
-##### 7.5. Тестирование
+##### 9.5. Тестирование
 • **GET** /admin/run_test/{test_type} - Запуск тестов
 
 Примеры:
@@ -271,7 +369,7 @@ curl http://localhost:8000/admin/run_test/repository
 curl http://localhost:8000/admin/run_test/all
 ```
 
-##### 7.6. Настройка SMTP
+##### 9.6. Настройка SMTP
 • **POST** /admin/email_config - Настройка SMTP сервера
 
 Пример:
@@ -280,10 +378,10 @@ curl http://localhost:8000/admin/run_test/all
 curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d "{\"smtp_server\": \"smtp.mail.ru\", \"smtp_port\": 465, \"smtp_user\": \"your.login@mail.ru\", \"smtp_password\": \"your-app-password\", \"from_email\": \"your.login@mail.ru\"}"
 ```
 
-## 8. Тестирование
+## 10. Тестирование
 В проекте есть 3 группы тестов:  
 
-##### 8.1. Тесты endpoints (tests/test_endpoints.py):  
+##### 10.1. Тесты endpoints (tests/test_endpoints.py):  
 - Тесты HTML страниц:
     - GET /about/ - страница с описанием проекта  
     - GET /admin/ - страница администратора
@@ -291,12 +389,12 @@ curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: applicat
 - Тест API:
     - GET /records/search - доступность endpoint поиска записей
 
-##### 8.2. Тесты базы данных (tests/test_repository.py):  
+##### 10.2. Тесты базы данных (tests/test_repository.py):  
 - Тесты репозитория:    
     - Тест добавления записи в БД
     - Тест удаления записи из БД
 
-##### 8.3. Тесты OCR (tests/test_ocr_server.py):  
+##### 10.3. Тесты OCR (tests/test_ocr_server.py):  
 - Тесты распознавания разных типов файлов:
     - test_text_ok_ru.png: ожидается успешное распознавание русского текста
     - test_text_ok_en.png: ожидается успешное распознавание английского текста
@@ -309,7 +407,7 @@ curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: applicat
     • Сравнивается результат с ожидаемым
     • Очищаются тестовые данные из БД
 
-##### 8.4. Запуск тестов:  
+##### 10.4. Запуск тестов:  
 - Через веб-интерфейс на странице "АДМИН":  
     - По отдельности, выбрав нужный тест
     - Все вместе, нажав "Запустить все тесты"
@@ -321,3 +419,37 @@ curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: applicat
 - Из командной строки:
     - Все тесты: pytest
     - Конкретный тест: pytest tests/test_имя_файла.py
+
+## 11. Валидация данных
+В проекте используется Pydantic для валидации результатов OCR:
+
+##### 11.1. Валидация результатов OCR (app/tesseract.py)
+```python
+class OCRResult(BaseModel):
+    text: str
+    status: bool = True
+```
+
+Валидация в методе ocr_recognize2() проверяет:
+1. Корректность формата файла:
+```python
+try:
+    img = PIL.Image.open(image_path)
+except PIL.UnidentifiedImageError:
+    return {"status": False, "text": "Ошибка: Неправильный формат файла"}
+```
+
+2. Валидация распознанного текста:
+   - Не пустой (not recognized_text)
+   - Содержит не менее 3 символов (len(recognized_text.strip()) < 3)
+   - Содержит хотя бы одну букву (re.search('[a-zA-Zа-яА-Я]', recognized_text))
+
+```python
+if not recognized_text or len(recognized_text.strip()) < 3 or not re.search('[a-zA-Zа-яА-Я]', recognized_text):
+    return {"status": False, "text": "Ошибка: Текст слишком короткий или не содержит букв"}
+```
+
+Если текст проходит валидацию, создается объект OCRResult, который гарантирует нужную структуру ответа:
+- text: строка с распознанным текстом
+- status: булево значение
+
