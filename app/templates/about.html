@@ -223,10 +223,6 @@
                                     • smtp_password - пароль для авторизации (для Mail.ru нужен пароль для внешнего приложения)<br>
                                     • from_email   - email адрес отправителя<br><br>
                                     
-                                    Пример настройки через API:<br>
-                                    <pre style="margin: 5px 0;">curl -X POST http://localhost:8000/admin/email_config -H "Content-Type: application/json" -d "{\"smtp_server\": \"smtp.mail.ru\", \"smtp_port\": 465, \"smtp_user\": \"your.login@mail.ru\", \"smtp_password\": \"your-app-password\", \"from_email\": \"your.login@mail.ru\"}"</pre>
-                                    <br>
-                                    
                                     Пример для Mail.ru:<br>
                                     • smtp_server: "smtp.mail.ru"<br>
                                     • smtp_port: 465<br>
